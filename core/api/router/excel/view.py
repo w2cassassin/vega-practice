@@ -7,9 +7,12 @@ from fastapi.responses import Response
 
 from core.api.router.excel.depends import get_service
 from core.api.router.excel.depends import get_file_manager
+from core.api.router.excel.depends import get_compare_service
+from core.services.excel import ExcelCompareService
 from core.services.conveter import DataConverter
 from core.services.excel import ExcelService as Service
 from core.services.file_manager import FileManager
+
 router = APIRouter(prefix="/excel")
 router.tags = ["excel"]
 
@@ -111,24 +114,45 @@ async def excel_update_with_blocks(
 
 @router.post("/add_file/")
 async def add_file(
-    file: UploadFile = File(...),
-    file_manager:FileManager = Depends(get_file_manager)
+    file: UploadFile = File(...), file_manager: FileManager = Depends(get_file_manager)
 ):
-    """Эндпоинт для добавления файла в базу данных"""
-    contents = await file.read()
-    
+    """Endpoint to upload a file to the database."""
     try:
-        file_id = await file_manager.save_xlsx(BytesIO(contents), file.filename)
+        saved_file = await file_manager.save_file(file)
+        file_id = saved_file.id
+
+        return {
+            "id": file_id,
+            "name": file.filename,
+            "created_at": saved_file.created_at,
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"message": "Файл успешно загружен", "file_id": file_id}
+
+@router.get("/files/")
+async def all_files(file_manager: FileManager = Depends(get_file_manager)):
+    """Эндпоинт для добавления файла в базу данных"""
+    try:
+        files = await file_manager.list_files()
+        return {
+            "files": [
+                {
+                    "name": file.original_name,
+                    "id": file.id,
+                    "created_at": file.created_at,
+                }
+                for file in files
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 # Удаление файла из базы данных
 @router.delete("/delete_file/{file_id}")
 async def delete_file(
-    file_id: int,
-    file_manager:FileManager = Depends(get_file_manager)
+    file_id: int, file_manager: FileManager = Depends(get_file_manager)
 ):
     """Эндпоинт для удаления файла из базы данных по ID"""
     try:
@@ -139,23 +163,24 @@ async def delete_file(
 
     return {"message": "Файл успешно удален"}
 
+
 @router.post("/compare_files/")
 async def compare_files(
     file_id_1: int,
     file_id_2: int,
-    service: Service = Depends(get_service),
-    file_manager:FileManager = Depends(get_file_manager)
+    service: ExcelCompareService = Depends(get_compare_service),
+    file_manager: FileManager = Depends(get_file_manager),
 ):
     """Эндпоинт для сравнения двух файлов по их ID"""
     try:
-        file_1 = await file_manager.get_file_by_id(file_id_1)
-        file_2 = await file_manager.get_file_by_id(file_id_2)
+        file_1 = await file_manager.get_file(file_id_1)
+        file_2 = await file_manager.get_file(file_id_2)
 
         if not file_1 or not file_2:
             raise HTTPException(status_code=404, detail="Файлы не найдены")
 
-        service.load(BytesIO(file_1.contents))
-        service.compare(BytesIO(file_2.contents))
+        service.load(BytesIO(file_1.file_data))
+        service.compare(BytesIO(file_2.file_data))
 
         new_file = service.save_to_bytes()
     except Exception as e:

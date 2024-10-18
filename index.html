@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css"
+    />
+    <title>Сравнение расписаний.</title>
+  </head>
+  <body>
+    <section class="section">
+      <div class="container">
+        <h1 class="title">Сравнение расписаний.</h1>
+
+        <div class="box">
+          <h2 class="subtitle">Загрузка файла</h2>
+          <form id="uploadForm">
+            <div class="field">
+              <div class="file has-name">
+                <label class="file-label">
+                  <input
+                    class="file-input"
+                    type="file"
+                    id="fileInput"
+                    required
+                  />
+                  <span class="file-cta">
+                    <span class="file-icon">
+                      <i class="fas fa-upload"></i>
+                    </span>
+                    <span class="file-label"> Выберите файл… </span>
+                  </span>
+                  <span class="file-name" id="fileName">Файл не выбран</span>
+                </label>
+              </div>
+            </div>
+            <div class="field">
+              <button type="submit" class="button is-primary">Загрузить</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="box">
+          <h2 class="subtitle">Доступные файлы</h2>
+          <button id="refreshFiles" class="button is-info mb-4">
+            Обновить список файлов
+          </button>
+          <div id="fileList" class="table-container">
+            <table class="table is-fullwidth">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Дата создания</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="filesTableBody">
+                <!-- File rows will be populated here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="box">
+          <h2 class="subtitle">Сравнение файлов</h2>
+          <form id="compareForm">
+            <div class="field">
+              <label class="label">ID первого файла</label>
+              <div class="control">
+                <input
+                  type="number"
+                  id="fileId1"
+                  class="input"
+                  placeholder="Введите ID первого файла"
+                  required
+                />
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">ID второго файла</label>
+              <div class="control">
+                <input
+                  type="number"
+                  id="fileId2"
+                  class="input"
+                  placeholder="Введите ID второго файла"
+                  required
+                />
+              </div>
+            </div>
+            <button type="submit" class="button is-primary">
+              Сравнить файлы
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+    <script>
+      const API_HOST = "http://localhost:8000/excel";
+
+      const fileInput = document.getElementById("fileInput");
+      const fileName = document.getElementById("fileName");
+      const filesTableBody = document.getElementById("filesTableBody");
+      const uploadForm = document.getElementById("uploadForm");
+      const compareForm = document.getElementById("compareForm");
+      const refreshFiles = document.getElementById("refreshFiles");
+
+      // Обновить метку выбранного файла
+      fileInput.addEventListener("change", () => {
+        fileName.textContent =
+          fileInput.files.length > 0
+            ? fileInput.files[0].name
+            : "Файл не выбран";
+      });
+
+      // Получить и отобразить список файлов
+      async function fetchFiles() {
+        try {
+          const response = await fetch(`${API_HOST}/files/`);
+          if (!response.ok)
+            throw new Error("Ошибка при получении списка файлов");
+          const data = await response.json();
+          filesTableBody.innerHTML = "";
+          data.files.forEach((file) => {
+            const formattedDate = new Date(file.created_at).toLocaleString(
+              "ru-RU",
+              {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }
+            );
+            const row = `<tr>
+                        <td>${file.id}</td>
+                        <td>${file.name}</td>
+                        <td>${formattedDate}</td>
+                        <td>
+                            <button class="button is-danger is-small" onclick="deleteFile(${file.id})">Удалить</button>
+                        </td>
+                    </tr>`;
+            filesTableBody.innerHTML += row;
+          });
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      // Загрузить файл
+      uploadForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        try {
+          const response = await fetch(`${API_HOST}/add_file/`, {
+            method: "POST",
+            body: formData,
+          });
+          if (!response.ok) throw new Error("Ошибка при загрузке файла");
+          //alert("Файл успешно загружен");
+          fetchFiles();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      // Удалить файл
+      async function deleteFile(fileId) {
+        try {
+          const response = await fetch(`${API_HOST}/delete_file/${fileId}`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Ошибка при удалении файла");
+          //alert("Файл успешно удален");
+          fetchFiles();
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      // Сравнить файлы
+      compareForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fileId1 = document.getElementById("fileId1").value;
+        const fileId2 = document.getElementById("fileId2").value;
+        try {
+          const response = await fetch(
+            `${API_HOST}/compare_files/?file_id_1=${fileId1}&file_id_2=${fileId2}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+          if (!response.ok) throw new Error("Ошибка при сравнении файлов");
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `comparison_${fileId1}_vs_${fileId2}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      // Кнопка обновления списка файлов
+      refreshFiles.addEventListener("click", fetchFiles);
+
+      // Загрузить список файлов при загрузке страницы
+      fetchFiles();
+    </script>
+  </body>
+</html>

@@ -5,8 +5,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.cell import MergedCell
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.styles.colors import COLOR_INDEX
-from openpyxl.utils import (column_index_from_string, get_column_letter,
-                            range_boundaries)
+from openpyxl.utils import column_index_from_string, get_column_letter, range_boundaries
 
 from core.services.base import BaseDocumentService
 
@@ -322,6 +321,101 @@ class ExcelService(BaseDocumentService):
             self.workbook.save(file_path)
         else:
             raise ValueError("Excel файл не загружен.")
-    
-    def compare(self):
-        pass
+
+
+class ExcelCompareService(ExcelService):
+
+    def compare(self, file_to_compare: BytesIO) -> None:
+        """Сравнивает два Excel файла и перемещает блоки с КМБО в начало."""
+        if not self.workbook:
+            raise ValueError("Основной Excel файл не загружен.")
+
+        # Загружаем второй файл для сравнения
+        compare_workbook = load_workbook(file_to_compare)
+
+        # Проход по всем листам
+        for sheet_name in self.workbook.sheetnames:
+            sheet1 = self.workbook[sheet_name]
+            sheet2 = compare_workbook[sheet_name]
+
+            # Выделяем блоки с группами КМБО и сравниваем
+            kmbo_blocks = self._get_kmbo_blocks(sheet1)
+            kmbo_blocks_compare = self._get_kmbo_blocks(sheet2)
+
+            # Сравниваем блоки и подсвечиваем различия
+            self._compare_and_highlight(
+                sheet1, kmbo_blocks, sheet2, kmbo_blocks_compare
+            )
+
+            # Перемещаем блоки с КМБО в начало
+            self._move_blocks_to_start(sheet1, kmbo_blocks)
+
+    def _get_kmbo_blocks(self, sheet):
+        """Извлекает блоки с КМБО для сравнения."""
+        kmbo_blocks = []
+        max_columns = sheet.max_column
+
+        block_size_first_type = 10  # Для блока первого типа (A-J)
+        block_size_second_type = 5  # Для блока второго типа (K-O)
+
+        for start_col in range(
+            1, max_columns + 1, block_size_first_type + block_size_second_type
+        ):
+            # Обрабатываем блоки первого типа (A-J)
+            first_block_range = self._identify_block_range(sheet, start_col, 1)
+            if first_block_range:
+                kmbo_blocks.append(first_block_range)
+
+            # Обрабатываем блоки второго типа (K-O)
+            second_block_range = self._identify_block_range(
+                sheet, start_col + block_size_first_type, 2
+            )
+            if second_block_range:
+                kmbo_blocks.append(second_block_range)
+
+        return kmbo_blocks
+
+    def _identify_block_range(self, sheet, start_col, block_type):
+        """Определяет диапазон блока в зависимости от его типа (первый или второй)."""
+        if block_type == 1:
+            # Название группы находится в 6-м столбце блока
+            group_col = start_col + 5
+            if sheet.cell(row=2, column=group_col).value and "КМБО" in str(
+                sheet.cell(row=2, column=group_col).value
+            ):
+                return (start_col, start_col + 9)
+        elif block_type == 2:
+            # Название группы находится в 1-м столбце блока
+            group_col = start_col
+            if sheet.cell(row=2, column=group_col).value and "КМБО" in str(
+                sheet.cell(row=2, column=group_col).value
+            ):
+                return (start_col, start_col + 4)
+        return None
+
+    def _compare_and_highlight(self, sheet1, blocks1, sheet2, blocks2):
+        """Сравнивает блоки и подсвечивает различия."""
+        red_fill = PatternFill(
+            start_color="FF0000", end_color="FF0000", fill_type="solid"
+        )
+        for block1, block2 in zip(blocks1, blocks2):
+            for col in range(block1[0], block1[1] + 1):
+                for row in range(1, sheet1.max_row + 1):
+                    cell1 = sheet1.cell(row=row, column=col)
+                    cell2 = sheet2.cell(row=row, column=col)
+                    if cell1.value != cell2.value:
+                        cell1.fill = red_fill
+
+    def _move_blocks_to_start(self, sheet, blocks):
+        """Перемещает блоки с КМБО в начало таблицы и удаляет все, что справа."""
+        inserted_cols = 1
+        for block in blocks:
+            start_col, end_col = block[0], block[1]
+            sheet.move_range(
+                f"{get_column_letter(start_col)}1:{get_column_letter(end_col)}{sheet.max_row}",
+                cols=-start_col + inserted_cols,
+            )
+            inserted_cols += end_col - start_col + 1
+
+        last_col = inserted_cols - 1
+        sheet.delete_cols(last_col + 1, sheet.max_column - last_col)

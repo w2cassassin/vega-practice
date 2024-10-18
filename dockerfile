@@ -2,7 +2,7 @@ FROM python:3.12-alpine
 
 WORKDIR /opt/src/
 
-RUN apk update && apk add --no-cache gcc musl-dev libffi-dev
+RUN apk update
 
 RUN pip install --upgrade pip
 
@@ -11,6 +11,6 @@ RUN poetry config virtualenvs.create false
 COPY poetry.lock pyproject.toml ./
 RUN poetry install
 
+RUN apk add --no-cache gcc build-base libffi-dev musl-dev postgresql-dev
 COPY ./ ./
-CMD python start_app.py
-
+CMD alembic upgrade head && uvicorn core.main:app --host 0.0.0.0 --port 8000 --log-level debug

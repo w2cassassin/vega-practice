@@ -36,25 +36,15 @@ class FileManager:
             return workbook
         return None
 
-    async def save_xlsx(self, file_data, original_name):
-        new_file = ScheduleFile(original_name=original_name, file_data=file_data)
-
-        self.db_session.add(new_file)
-        await self.db_session.commit()
-        await self.db_session.refresh(new_file)
-
-        return new_file
-    
     async def save_file(self, file):
-        file_data = await file.read()
+        file_data = await file.read()  # Read file as binary data
 
-        new_file = ScheduleFile(
-            original_name=file.filename,
-            file_data=file_data
-        )
+        new_file = ScheduleFile(original_name=file.filename, file_data=file_data)
 
         self.db_session.add(new_file)
         await self.db_session.commit()
-        await self.db_session.refresh(new_file)
+        await self.db_session.refresh(new_file)  # Refresh to get the new ID
 
+        # Debug to ensure file ID exists
+        print(f"New file ID: {new_file.id}")
         return new_file

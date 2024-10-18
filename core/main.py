@@ -7,7 +7,7 @@ from core.api import router
 from core.settings.app_config import settings
 
 app: FastAPI = FastAPI(
-    title="Micorosoft documets generate/analyze", root_path=settings.ROOT_PATH
+    title="Excel generate/analyze", root_path=settings.ROOT_PATH
 )
 
 
