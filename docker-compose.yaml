@@ -3,7 +3,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./dockerfile
     ports:
       - "${DOCKER_PORT:-8012}:${APP_PORT:-8000}"
     env_file:

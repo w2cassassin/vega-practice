@@ -11,7 +11,28 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
     <title>Сравнение расписаний.</title>
+    <style>
+      #loading {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      #loading .spinner {
+        font-size: 3rem;
+      }
+    </style>
   </head>
   <body>
     <section class="section">
@@ -95,22 +116,30 @@
                 />
               </div>
             </div>
-            <button type="submit" class="button is-primary">
+            <button type="submit" id="compareButton" class="button is-primary">
               Сравнить файлы
             </button>
           </form>
         </div>
       </div>
     </section>
+    <div id="loading" class="has-text-centered">
+      <div class="spinner">
+        <i class="fas fa-spinner fa-pulse"></i>
+      </div>
+      <p>Идет сравнение файлов, пожалуйста, подождите...</p>
+    </div>
     <script>
-      const API_HOST = "http://localhost:8000/excel";
+      const API_HOST = "";
 
       const fileInput = document.getElementById("fileInput");
       const fileName = document.getElementById("fileName");
       const filesTableBody = document.getElementById("filesTableBody");
       const uploadForm = document.getElementById("uploadForm");
       const compareForm = document.getElementById("compareForm");
+      const compareButton = document.getElementById("compareButton");
       const refreshFiles = document.getElementById("refreshFiles");
+      const loadingIndicator = document.getElementById("loading");
 
       // Обновить метку выбранного файла
       fileInput.addEventListener("change", () => {
@@ -128,19 +157,21 @@
             throw new Error("Ошибка при получении списка файлов");
           const data = await response.json();
           filesTableBody.innerHTML = "";
-          data.files.forEach((file) => {
-            const formattedDate = new Date(file.created_at).toLocaleString(
-              "ru-RU",
-              {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              }
-            );
-            const row = `<tr>
+          data.files
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .forEach((file) => {
+              const formattedDate = new Date(file.created_at).toLocaleString(
+                "ru-RU",
+                {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                }
+              );
+              const row = `<tr>
                         <td>${file.id}</td>
                         <td>${file.name}</td>
                         <td>${formattedDate}</td>
@@ -148,8 +179,8 @@
                             <button class="button is-danger is-small" onclick="deleteFile(${file.id})">Удалить</button>
                         </td>
                     </tr>`;
-            filesTableBody.innerHTML += row;
-          });
+              filesTableBody.innerHTML += row;
+            });
         } catch (error) {
           alert(error.message);
         }
@@ -192,6 +223,8 @@
         e.preventDefault();
         const fileId1 = document.getElementById("fileId1").value;
         const fileId2 = document.getElementById("fileId2").value;
+        loadingIndicator.style.display = "flex";
+        compareButton.disabled = true;
         try {
           const response = await fetch(
             `${API_HOST}/compare_files/?file_id_1=${fileId1}&file_id_2=${fileId2}`,
@@ -213,6 +246,9 @@
           a.remove();
         } catch (error) {
           alert(error.message);
+        } finally {
+          loadingIndicator.style.display = "none";
+          compareButton.disabled = false;
         }
       });
 
