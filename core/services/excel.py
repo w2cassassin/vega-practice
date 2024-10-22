@@ -9,6 +9,11 @@ from openpyxl.utils import column_index_from_string, get_column_letter, range_bo
 
 from core.services.base import BaseDocumentService
 
+COLUMN_MAPS = {
+    "1": {5: "title", 7: "fio", 8: "room"},
+    "2": {0: "title", 2: "fio", 3: "room"},
+}
+
 
 class ExcelService(BaseDocumentService):
     def __init__(self):
@@ -343,12 +348,11 @@ class ExcelCompareService(ExcelService):
             kmbo_blocks_compare = self._get_kmbo_blocks(sheet2)
 
             # Сравниваем блоки и подсвечиваем различия
-            self._compare_and_highlight(
+            compare_data = self._compare_and_highlight(
                 sheet1, kmbo_blocks, sheet2, kmbo_blocks_compare
             )
-
-            # Перемещаем блоки с КМБО в начало
             self._move_blocks_to_start(sheet1, kmbo_blocks)
+            return compare_data
 
     def _get_kmbo_blocks(self, sheet):
         """Извлекает блоки с КМБО для сравнения."""
@@ -398,13 +402,29 @@ class ExcelCompareService(ExcelService):
         red_fill = PatternFill(
             start_color="FF0000", end_color="FF0000", fill_type="solid"
         )
+        compare_data = {"title": 0, "fio": 0, "room": 0, "campus": 0}
         for block1, block2 in zip(blocks1, blocks2):
+            index = 0
+            if block1[1] - block1[0] == 9:
+                column_map = COLUMN_MAPS["1"]
+            else:
+                column_map = COLUMN_MAPS["2"]
             for col in range(block1[0], block1[1] + 1):
                 for row in range(1, sheet1.max_row + 1):
                     cell1 = sheet1.cell(row=row, column=col)
                     cell2 = sheet2.cell(row=row, column=col)
                     if cell1.value != cell2.value:
+                        if index in column_map:
+                            column_name = column_map[index]
+                            if column_name == "room" and (
+                                cell1.value in cell2.value or cell2.value in cell1.value
+                            ):
+                                compare_data["campus"] += 1
+                            else:
+                                compare_data[column_name] += 1
                         cell1.fill = red_fill
+                index += 1
+        return compare_data
 
     def _move_blocks_to_start(self, sheet, blocks):
         """Перемещает блоки с КМБО в начало таблицы и удаляет все, что справа."""

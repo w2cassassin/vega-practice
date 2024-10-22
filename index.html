@@ -15,7 +15,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
     />
-    <title>Сравнение расписаний.</title>
+    <title>Сравнение расписаний</title>
     <style>
       #loading {
         display: none;
@@ -32,12 +32,46 @@
       #loading .spinner {
         font-size: 3rem;
       }
+      .pair-selectors {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      .pair-and-result {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .selectors-box {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        flex: 1;
+        min-width: 300px;
+      }
+      .select {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .select select {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .delete-pair-button {
+        align-self: center;
+      }
+      .comparison-table {
+        margin-top: 2rem;
+      }
     </style>
   </head>
   <body>
     <section class="section">
       <div class="container">
-        <h1 class="title">Сравнение расписаний.</h1>
+        <h1 class="title">Сравнение расписаний</h1>
 
         <div class="box">
           <h2 class="subtitle">Загрузка файла</h2>
@@ -92,34 +126,67 @@
         <div class="box">
           <h2 class="subtitle">Сравнение файлов</h2>
           <form id="compareForm">
-            <div class="field">
-              <label class="label">ID первого файла</label>
-              <div class="control">
-                <input
-                  type="number"
-                  id="fileId1"
-                  class="input"
-                  placeholder="Введите ID первого файла"
-                  required
-                />
+            <div class="selectors-box" id="selectorsContainer">
+              <div class="pair-and-result">
+                <div class="pair-selectors">
+                  <div class="control">
+                    <div class="select">
+                      <select class="fileSelect1" required>
+                        <!-- File options will be populated here -->
+                      </select>
+                    </div>
+                  </div>
+                  <div class="control">
+                    <div class="select">
+                      <select class="fileSelect2" required>
+                        <!-- File options will be populated here -->
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="button is-danger is-light delete-pair-button"
+                  >
+                    Удалить
+                  </button>
+                </div>
               </div>
             </div>
             <div class="field">
-              <label class="label">ID второго файла</label>
-              <div class="control">
-                <input
-                  type="number"
-                  id="fileId2"
-                  class="input"
-                  placeholder="Введите ID второго файла"
-                  required
-                />
-              </div>
+              <button type="button" id="addPairButton" class="button is-info">
+                Добавить еще пару
+              </button>
             </div>
-            <button type="submit" id="compareButton" class="button is-primary">
-              Сравнить файлы
-            </button>
+            <div class="field">
+              <button
+                type="submit"
+                id="compareButton"
+                class="button is-primary"
+              >
+                Сравнить файлы
+              </button>
+            </div>
           </form>
+        </div>
+
+        <div
+          id="comparisonResultsContainer"
+          class="box comparison-table"
+          style="display: none"
+        >
+          <h2 class="subtitle">Результаты сравнения</h2>
+          <table class="table is-fullwidth">
+            <thead>
+              <tr>
+                <th>Количество изменений</th>
+                <!-- Pair headers will be populated here -->
+                <th>Итоговые изменения</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonResultsBody">
+              <!-- Comparison results will be populated here -->
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -130,7 +197,7 @@
       <p>Идет сравнение файлов, пожалуйста, подождите...</p>
     </div>
     <script>
-      const API_HOST = "";
+      const API_HOST = "http://localhost:8000/excel";
 
       const fileInput = document.getElementById("fileInput");
       const fileName = document.getElementById("fileName");
@@ -140,6 +207,16 @@
       const compareButton = document.getElementById("compareButton");
       const refreshFiles = document.getElementById("refreshFiles");
       const loadingIndicator = document.getElementById("loading");
+      const selectorsContainer = document.getElementById("selectorsContainer");
+      const addPairButton = document.getElementById("addPairButton");
+      const comparisonResultsContainer = document.getElementById(
+        "comparisonResultsContainer"
+      );
+      const comparisonResultsBody = document.getElementById(
+        "comparisonResultsBody"
+      );
+
+      let pairs = [];
 
       // Обновить метку выбранного файла
       fileInput.addEventListener("change", () => {
@@ -157,6 +234,9 @@
             throw new Error("Ошибка при получении списка файлов");
           const data = await response.json();
           filesTableBody.innerHTML = "";
+          document
+            .querySelectorAll(".fileSelect1, .fileSelect2")
+            .forEach((select) => (select.innerHTML = ""));
           data.files
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .forEach((file) => {
@@ -180,6 +260,15 @@
                         </td>
                     </tr>`;
               filesTableBody.innerHTML += row;
+
+              const option1 = document.createElement("option");
+              option1.value = file.id;
+              option1.textContent = `${file.name} (${formattedDate})`;
+              document
+                .querySelectorAll(".fileSelect1, .fileSelect2")
+                .forEach((select) =>
+                  select.appendChild(option1.cloneNode(true))
+                );
             });
         } catch (error) {
           alert(error.message);
@@ -197,7 +286,6 @@
             body: formData,
           });
           if (!response.ok) throw new Error("Ошибка при загрузке файла");
-          //alert("Файл успешно загружен");
           fetchFiles();
         } catch (error) {
           alert(error.message);
@@ -211,39 +299,152 @@
             method: "DELETE",
           });
           if (!response.ok) throw new Error("Ошибка при удалении файла");
-          //alert("Файл успешно удален");
           fetchFiles();
         } catch (error) {
           alert(error.message);
         }
       }
 
+      // Добавить пару файлов для сравнения
+      addPairButton.addEventListener("click", () => {
+        const newPair = document.createElement("div");
+        newPair.classList.add("pair-and-result");
+        newPair.innerHTML = `
+          <div class="pair-selectors">
+            <div class="control">
+              <div class="select">
+                <select class="fileSelect1" required>
+                  ${document.querySelector(".fileSelect1").innerHTML}
+                </select>
+              </div>
+            </div>
+            <div class="control">
+              <div class="select">
+                <select class="fileSelect2" required>
+                  ${document.querySelector(".fileSelect2").innerHTML}
+                </select>
+              </div>
+            </div>
+            <button type="button" class="button is-danger is-light delete-pair-button">Удалить</button>
+          </div>
+        `;
+        selectorsContainer.appendChild(newPair);
+
+        newPair
+          .querySelector(".delete-pair-button")
+          .addEventListener("click", () => {
+            newPair.remove();
+          });
+      });
+
       // Сравнить файлы
       compareForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const fileId1 = document.getElementById("fileId1").value;
-        const fileId2 = document.getElementById("fileId2").value;
+        pairs = [];
+        document.querySelectorAll(".pair-selectors").forEach((pair) => {
+          const fileId1 = pair.querySelector(".fileSelect1").value;
+          const fileId2 = pair.querySelector(".fileSelect2").value;
+          if (fileId1 && fileId2 && fileId1 !== fileId2) {
+            pairs.push({ fileId1, fileId2 });
+          }
+        });
+
+        if (pairs.length === 0) {
+          alert("Пожалуйста, добавьте хотя бы одну пару для сравнения");
+          return;
+        }
+
         loadingIndicator.style.display = "flex";
         compareButton.disabled = true;
+
+        comparisonResultsBody.innerHTML = "";
+        // Выбираем заголовок таблицы результатов сравнения
+        const headerRow = document.querySelector(
+          "#comparisonResultsContainer thead tr"
+        );
+        headerRow.innerHTML = "<th>Измененилось</th>";
+
         try {
-          const response = await fetch(
-            `${API_HOST}/compare_files/?file_id_1=${fileId1}&file_id_2=${fileId2}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
+          for (const pair of pairs) {
+            const { fileId1, fileId2 } = pair;
+            const response = await fetch(
+              `${API_HOST}/compare_files/?file_id_1=${fileId1}&file_id_2=${fileId2}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: "",
+              }
+            );
+            if (!response.ok) throw new Error("Ошибка при сравнении файлов");
+            const result = await response.json();
+
+            // Добавление заголовка для текущей пары файлов
+            const headerCell = document.createElement("th");
+            headerCell.textContent = `id ${fileId1} & ${fileId2}`;
+            headerRow.appendChild(headerCell);
+
+            // Добавление результатов в таблицу
+            const changes = [
+              { name: "Предметов", value: result.metadata.title },
+              { name: "Преподавателей", value: result.metadata.fio },
+              { name: "Аудиторий", value: result.metadata.room },
+              { name: "Кампусов", value: result.metadata.campus },
+            ];
+
+            changes.forEach((change, index) => {
+              let row = comparisonResultsBody.children[index];
+              if (!row) {
+                row = document.createElement("tr");
+                row.innerHTML = `<td>${change.name}</td>`;
+                comparisonResultsBody.appendChild(row);
+              }
+              const cell = document.createElement("td");
+              cell.textContent = change.value;
+              row.appendChild(cell);
+            });
+
+            // Добавление кнопки для скачивания файла сравнения
+            let downloadRow =
+              comparisonResultsBody.querySelector(".download-row");
+            if (!downloadRow) {
+              downloadRow = document.createElement("tr");
+              downloadRow.classList.add("download-row");
+              downloadRow.innerHTML = `<td>Файл сравнения</td>`;
+              comparisonResultsBody.appendChild(downloadRow);
             }
-          );
-          if (!response.ok) throw new Error("Ошибка при сравнении файлов");
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `comparison_${fileId1}_vs_${fileId2}.xlsx`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
+            const downloadCell = document.createElement("td");
+            const downloadButton = document.createElement("a");
+            downloadButton.href = result.download_url;
+            downloadButton.classList.add("button", "is-small", "is-info");
+            downloadButton.textContent = "Скачать";
+            downloadCell.appendChild(downloadButton);
+            downloadRow.appendChild(downloadCell);
+          }
+
+          // Добавление итогового заголовка "Итого"
+          const totalChangesHeader = document.createElement("th");
+          totalChangesHeader.textContent = "Итого";
+          headerRow.appendChild(totalChangesHeader);
+
+          // Подсчет итоговых изменений для каждой строки
+          document
+            .querySelectorAll("#comparisonResultsBody tr")
+            .forEach((row) => {
+              if (!row.classList.contains("download-row")) {
+                const sum = Array.from(
+                  row.querySelectorAll("td:not(:first-child)")
+                )
+                  .map((cell) => parseInt(cell.textContent) || 0)
+                  .reduce((a, b) => a + b, 0);
+                const totalCell = document.createElement("td");
+                totalCell.textContent = sum;
+                row.appendChild(totalCell);
+              }
+            });
+
+          comparisonResultsContainer.style.display = "block";
         } catch (error) {
           alert(error.message);
         } finally {

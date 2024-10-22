@@ -12,6 +12,7 @@ from core.services.excel import ExcelCompareService
 from core.services.conveter import DataConverter
 from core.services.excel import ExcelService as Service
 from core.services.file_manager import FileManager
+from fastapi import Request
 
 router = APIRouter(prefix="/excel")
 router.tags = ["excel"]
@@ -168,28 +169,65 @@ async def delete_file(
 async def compare_files(
     file_id_1: int,
     file_id_2: int,
+    request: Request,
     service: ExcelCompareService = Depends(get_compare_service),
     file_manager: FileManager = Depends(get_file_manager),
 ):
-    """Эндпоинт для сравнения двух файлов по их ID"""
+    """Эндпоинт для сравнения двух файлов по их ID и сохранения результата в базу данных"""
     try:
+        # Получение файлов
         file_1 = await file_manager.get_file(file_id_1)
         file_2 = await file_manager.get_file(file_id_2)
 
         if not file_1 or not file_2:
             raise HTTPException(status_code=404, detail="Файлы не найдены")
 
+        # Загрузка и сравнение
         service.load(BytesIO(file_1.file_data))
-        service.compare(BytesIO(file_2.file_data))
+        result = service.compare(BytesIO(file_2.file_data))
 
         new_file = service.save_to_bytes()
+
+        # Сохранение файла результата в базу данных
+        saved_file = await file_manager.save_file_from_bytes(
+            new_file,
+            filename=f"comparison_{file_id_1}_vs_{file_id_2}.xlsx",
+        )
+        file_id = saved_file.id
+
+        download_url = request.url_for("download_file", file_id=file_id)._url
+
+        return {
+            "metadata": result,
+            "comparison_file_id": file_id,
+            "download_url": download_url,
+        }
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    filename = f"comparison_{file_id_1}_vs_{file_id_2}.xlsx"
-    headers = {
-        "Content-Disposition": f"attachment; filename*=utf-8''{quote(filename)}",
-    }
-    media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-    return Response(content=new_file.getvalue(), headers=headers, media_type=media_type)
+@router.get("/download_file/{file_id}")
+async def download_file(
+    file_id: int, file_manager: FileManager = Depends(get_file_manager)
+):
+    """Эндпоинт для скачивания файла из базы данных по его ID."""
+    try:
+        file_data = await file_manager.get_file(file_id)
+        await file_manager.delete_file(file_id)
+        if not file_data:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
+        filename = quote(file_data.original_name)
+
+        headers = {
+            "Content-Disposition": f"attachment; filename*=utf-8''{filename}",
+        }
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        return Response(
+            content=file_data.file_data, headers=headers, media_type=media_type
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
