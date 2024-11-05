@@ -5,8 +5,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.cell import MergedCell
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.styles.colors import COLOR_INDEX
-from openpyxl.utils import (column_index_from_string, get_column_letter,
-                            range_boundaries)
+from openpyxl.utils import column_index_from_string, get_column_letter, range_boundaries
 
 from core.services.base import BaseDocumentService
 
@@ -14,6 +13,15 @@ COLUMN_MAPS = {
     "1": {5: "title", 7: "fio", 8: "room"},
     "2": {0: "title", 2: "fio", 3: "room"},
 }
+WEEKDAYS = [
+    "Понедельник",
+    "Вторник",
+    "Среда",
+    "Четверг",
+    "Пятница",
+    "Суббота",
+    "Воскресенье",
+]
 
 
 class ExcelService(BaseDocumentService):
@@ -403,18 +411,40 @@ class ExcelCompareService(ExcelService):
         red_fill = PatternFill(
             start_color="FF0000", end_color="FF0000", fill_type="solid"
         )
-        compare_data = {"title": 0, "fio": 0, "room": 0, "campus": 0}
+        compare_data = {"title": 0, "fio": 0, "room": 0, "campus": 0, "changes": {}}
         for block1, block2 in zip(blocks1, blocks2):
             index = 0
             if block1[1] - block1[0] == 9:
                 column_map = COLUMN_MAPS["1"]
+                group_name = sheet1.cell(row=2, column=block1[0] + 5).value
             else:
                 column_map = COLUMN_MAPS["2"]
+                group_name = sheet1.cell(row=2, column=block1[0]).value
+            print(group_name)
             for col in range(block1[0], block1[1] + 1):
                 for row in range(1, sheet1.max_row + 1):
+                    weekday_num = (row - 4) // 14
+                    weekday = (
+                        WEEKDAYS[weekday_num] if weekday_num < len(WEEKDAYS) else "-"
+                    )
+                    lesson_num = ((row - 4) % 14) // 2 + 1
                     cell1 = sheet1.cell(row=row, column=col)
                     cell2 = sheet2.cell(row=row, column=col)
                     if cell1.value != cell2.value:
+                        if group_name not in compare_data["changes"]:
+                            compare_data["changes"][group_name] = {}
+                        if weekday not in compare_data["changes"][group_name]:
+                            compare_data["changes"][group_name][weekday] = {}
+                        if (
+                            lesson_num
+                            not in compare_data["changes"][group_name][weekday]
+                        ):
+                            compare_data["changes"][group_name][weekday][
+                                lesson_num
+                            ] = []
+                        compare_data["changes"][group_name][weekday][lesson_num].append(
+                            f"{cell2.value} -> {cell1.value}"
+                        )
                         if index in column_map:
                             column_name = column_map[index]
                             if column_name == "room" and (

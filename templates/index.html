@@ -66,6 +66,19 @@
       .comparison-table {
         margin-top: 2rem;
       }
+      .changes-row ul {
+        list-style-type: disc;
+        margin-left: 20px;
+      }
+
+      .changes-row div strong {
+        display: block;
+        margin-top: 10px;
+      }
+      .changes-container {
+        max-height: 300px;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body>
@@ -362,7 +375,7 @@
         const headerRow = document.querySelector(
           "#comparisonResultsContainer thead tr"
         );
-        headerRow.innerHTML = "<th>Измененилось</th>";
+        headerRow.innerHTML = "<th>Количество изменений</th>";
 
         try {
           for (const pair of pairs) {
@@ -386,14 +399,15 @@
             headerRow.appendChild(headerCell);
 
             // Добавление результатов в таблицу
-            const changes = [
+            const changesData = [
               { name: "Предметов", value: result.metadata.title },
               { name: "Преподавателей", value: result.metadata.fio },
               { name: "Аудиторий", value: result.metadata.room },
               { name: "Кампусов", value: result.metadata.campus },
             ];
 
-            changes.forEach((change, index) => {
+            // Обработка каждого типа изменений
+            changesData.forEach((change, index) => {
               let row = comparisonResultsBody.children[index];
               if (!row) {
                 row = document.createElement("tr");
@@ -405,6 +419,86 @@
               row.appendChild(cell);
             });
 
+            // Обработка детальных изменений
+            const detailedChanges = result.metadata.changes || {};
+            let changesRowIndex = changesData.length; // Индекс для строки с изменениями
+            let changesRow = comparisonResultsBody.children[changesRowIndex];
+            if (!changesRow) {
+              changesRow = document.createElement("tr");
+              changesRow.classList.add("changes-row");
+              changesRow.innerHTML = `<td>Изменения</td>`;
+              comparisonResultsBody.appendChild(changesRow);
+            }
+            const changesCell = document.createElement("td");
+
+            // Если есть изменения, добавляем кнопку для показа/скрытия
+            if (Object.keys(detailedChanges).length > 0) {
+              const button = document.createElement("button");
+              button.classList.add("button", "is-small");
+              button.textContent = "Показать изменения";
+              changesCell.appendChild(button);
+
+              const changesContainer = document.createElement("div");
+              changesContainer.classList.add("changes-container");
+              changesContainer.style.display = "none";
+              changesContainer.style.marginTop = "10px";
+
+              // Создаем список изменений
+              Object.keys(detailedChanges).forEach((group) => {
+                const groupDiv = document.createElement("div");
+                const groupHeader = document.createElement("strong");
+                groupHeader.textContent = group;
+                groupDiv.appendChild(groupHeader);
+
+                const days = detailedChanges[group];
+                Object.keys(days).forEach((day) => {
+                  const dayDiv = document.createElement("div");
+                  dayDiv.style.marginLeft = "15px";
+                  const dayHeader = document.createElement("strong");
+                  dayHeader.textContent = day;
+                  dayDiv.appendChild(dayHeader);
+
+                  const lessons = days[day];
+                  Object.keys(lessons).forEach((lesson) => {
+                    const lessonDiv = document.createElement("div");
+                    lessonDiv.style.marginLeft = "30px";
+                    const lessonHeader = document.createElement("strong");
+                    lessonHeader.textContent = `Пара ${lesson}`;
+                    lessonDiv.appendChild(lessonHeader);
+
+                    const changesList = document.createElement("ul");
+                    changesList.style.marginLeft = "45px";
+                    lessons[lesson].forEach((changeText) => {
+                      const li = document.createElement("li");
+                      li.textContent = changeText;
+                      changesList.appendChild(li);
+                    });
+                    lessonDiv.appendChild(changesList);
+                    dayDiv.appendChild(lessonDiv);
+                  });
+                  groupDiv.appendChild(dayDiv);
+                });
+                changesContainer.appendChild(groupDiv);
+              });
+
+              changesCell.appendChild(changesContainer);
+
+              button.addEventListener("click", () => {
+                if (changesContainer.style.display === "none") {
+                  changesContainer.style.display = "block";
+                  button.textContent = "Скрыть изменения";
+                } else {
+                  changesContainer.style.display = "none";
+                  button.textContent = "Показать изменения";
+                }
+              });
+            } else {
+              // Если изменений нет, отображаем соответствующее сообщение
+              changesCell.textContent = "Нет изменений";
+            }
+
+            changesRow.appendChild(changesCell);
+
             // Добавление кнопки для скачивания файла сравнения
             let downloadRow =
               comparisonResultsBody.querySelector(".download-row");
@@ -414,11 +508,17 @@
               downloadRow.innerHTML = `<td>Файл сравнения</td>`;
               comparisonResultsBody.appendChild(downloadRow);
             }
+
             const downloadCell = document.createElement("td");
             const downloadButton = document.createElement("a");
-            downloadButton.href = result.download_url;
             downloadButton.classList.add("button", "is-small", "is-info");
-            downloadButton.textContent = "Скачать";
+            if (result.download_url) {
+              downloadButton.href = result.download_url;
+              downloadButton.textContent = "Скачать";
+            } else {
+              downloadButton.textContent = "-";
+              downloadButton.classList.add("is-static"); // Делает кнопку неактивной
+            }
             downloadCell.appendChild(downloadButton);
             downloadRow.appendChild(downloadCell);
           }
@@ -432,7 +532,10 @@
           document
             .querySelectorAll("#comparisonResultsBody tr")
             .forEach((row) => {
-              if (!row.classList.contains("download-row")) {
+              if (
+                !row.classList.contains("download-row") &&
+                !row.classList.contains("changes-row")
+              ) {
                 const sum = Array.from(
                   row.querySelectorAll("td:not(:first-child)")
                 )
@@ -440,6 +543,10 @@
                   .reduce((a, b) => a + b, 0);
                 const totalCell = document.createElement("td");
                 totalCell.textContent = sum;
+                row.appendChild(totalCell);
+              } else {
+                const totalCell = document.createElement("td");
+                totalCell.textContent = "";
                 row.appendChild(totalCell);
               }
             });

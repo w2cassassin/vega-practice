@@ -12,6 +12,7 @@ from core.services.conveter import DataConverter
 from core.services.excel import ExcelCompareService
 from core.services.excel import ExcelService as Service
 from core.services.file_manager import FileManager
+from core.services.ics import IcsCompareService
 
 router = APIRouter(prefix="/api")
 router.tags = ["excel"]
@@ -169,42 +170,55 @@ async def compare_files(
     file_id_1: int,
     file_id_2: int,
     request: Request,
-    service: ExcelCompareService = Depends(get_compare_service),
     file_manager: FileManager = Depends(get_file_manager),
 ):
-    """Эндпоинт для сравнения двух файлов по их ID и сохранения результата в базу данных"""
+    """Endpoint for comparing two files by their IDs and saving the result in the database."""
     try:
-        # Получение файлов
+        # Retrieve files
         file_1 = await file_manager.get_file(file_id_1)
         file_2 = await file_manager.get_file(file_id_2)
 
         if not file_1 or not file_2:
             raise HTTPException(status_code=404, detail="Файлы не найдены")
 
-        # Загрузка и сравнение
-        service.load(BytesIO(file_1.file_data))
-        result = service.compare(BytesIO(file_2.file_data))
+        filename_1 = file_1.original_name.lower()
+        filename_2 = file_2.original_name.lower()
 
-        new_file = service.save_to_bytes()
+        if filename_1.endswith(".xlsx") and filename_2.endswith(".xlsx"):
+            service = ExcelCompareService()
+            service.load(BytesIO(file_1.file_data))
+            result = service.compare(BytesIO(file_2.file_data))
 
-        # Сохранение файла результата в базу данных
-        saved_file = await file_manager.save_file_from_bytes(
-            new_file,
-            filename=f"comparison_{file_id_1}_vs_{file_id_2}.xlsx",
-        )
-        file_id = saved_file.id
+            new_file = service.save_to_bytes()
 
-        scheme = request.headers.get("X-Forwarded-Proto", request.url.scheme)
+            saved_file = await file_manager.save_file_from_bytes(
+                new_file,
+                filename=f"comparison_{file_id_1}_vs_{file_id_2}.xlsx",
+            )
+            file_id = saved_file.id
 
-        download_url = request.url_for("download_file", file_id=file_id)._url.replace(
-            "http://", f"{scheme}://"
-        )
+            scheme = request.headers.get("X-Forwarded-Proto", request.url.scheme)
 
-        return {
-            "metadata": result,
-            "comparison_file_id": file_id,
-            "download_url": download_url,
-        }
+            download_url = request.url_for(
+                "download_file", file_id=file_id
+            )._url.replace("http://", f"{scheme}://")
+
+            return {
+                "metadata": result,
+                "comparison_file_id": file_id,
+                "download_url": download_url,
+            }
+
+        elif filename_1.endswith(".ics") and filename_2.endswith(".ics"):
+            service = IcsCompareService()
+            service.load(BytesIO(file_1.file_data))
+            result = service.compare(BytesIO(file_2.file_data))
+
+            return {
+                "metadata": result,
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Неверный формат файлов.")
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
