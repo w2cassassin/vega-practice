@@ -5,7 +5,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.cell import MergedCell
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.styles.colors import COLOR_INDEX
-from openpyxl.utils import column_index_from_string, get_column_letter, range_boundaries
+from openpyxl.utils import (column_index_from_string, get_column_letter,
+                            range_boundaries)
 
 from core.services.base import BaseDocumentService
 

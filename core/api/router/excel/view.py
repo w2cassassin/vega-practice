@@ -2,6 +2,7 @@ from io import BytesIO
 from typing import Any, Dict
 from urllib.parse import quote
 
+import httpx
 from fastapi import (APIRouter, Depends, File, Form, HTTPException, Request,
                      UploadFile)
 from fastapi.responses import Response
@@ -248,3 +249,19 @@ async def download_file(
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/search_groups/")
+async def search_groups(match: str):
+    external_api_url = "https://schedule-of.mirea.ru/schedule/api/search"
+    params = {"limit": 15, "match": match}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(external_api_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return data

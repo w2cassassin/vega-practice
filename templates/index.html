@@ -79,6 +79,35 @@
         max-height: 300px;
         overflow-y: auto;
       }
+
+      .input {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .dropdown {
+        width: 100%;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 20;
+      }
+
+      .dropdown .dropdown-menu {
+        width: 100%;
+      }
+      .field.is-grouped {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .field.is-grouped .control:last-child {
+        flex: 1;
+      }
+
+      .control:last-child .input {
+        width: 100%;
+      }
     </style>
   </head>
   <body>
@@ -89,23 +118,45 @@
         <div class="box">
           <h2 class="subtitle">Загрузка файла</h2>
           <form id="uploadForm">
-            <div class="field">
-              <div class="file has-name">
-                <label class="file-label">
-                  <input
-                    class="file-input"
-                    type="file"
-                    id="fileInput"
-                    required
-                  />
-                  <span class="file-cta">
-                    <span class="file-icon">
-                      <i class="fas fa-upload"></i>
+            <div class="field is-grouped">
+              <div class="control">
+                <div class="file has-name">
+                  <label class="file-label">
+                    <input class="file-input" type="file" id="fileInput" />
+                    <span class="file-cta">
+                      <span class="file-icon">
+                        <i class="fas fa-upload"></i>
+                      </span>
+                      <span class="file-label"> Выберите файл… </span>
                     </span>
-                    <span class="file-label"> Выберите файл… </span>
-                  </span>
-                  <span class="file-name" id="fileName">Файл не выбран</span>
-                </label>
+                    <span class="file-name" id="fileName">Файл не выбран</span>
+                  </label>
+                </div>
+              </div>
+              <div class="control">
+                <input
+                  class="input"
+                  type="text"
+                  id="groupSearchInput"
+                  placeholder="Введите название группы"
+                  autocomplete="off"
+                />
+                <div class="dropdown" id="groupSearchDropdown">
+                  <div class="dropdown-menu">
+                    <div class="dropdown-content" id="groupSearchResults"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="control">
+                <label class="label">Ссылка на файл:</label>
+                <input
+                  class="input"
+                  type="text"
+                  id="linkInput"
+                  placeholder="Введите URL для загрузки"
+                />
               </div>
             </div>
             <div class="field">
@@ -228,8 +279,143 @@
       const comparisonResultsBody = document.getElementById(
         "comparisonResultsBody"
       );
+      const groupSearchInput = document.getElementById("groupSearchInput");
+      const groupSearchDropdown = document.getElementById(
+        "groupSearchDropdown"
+      );
+      const groupSearchResults = document.getElementById("groupSearchResults");
+      const linkInput = document.getElementById("linkInput");
 
-      let pairs = [];
+      // Обновить метку выбранного файла
+      fileInput.addEventListener("change", () => {
+        fileName.textContent =
+          fileInput.files.length > 0
+            ? fileInput.files[0].name
+            : "Файл не выбран";
+      });
+
+      // Функция дебаунса
+      function debounce(func, delay) {
+        let debounceTimer;
+        return function () {
+          const context = this;
+          const args = arguments;
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => func.apply(context, args), delay);
+        };
+      }
+
+      // Обработчик поиска группы
+      groupSearchInput.addEventListener(
+        "input",
+        debounce(handleGroupSearch, 300)
+      );
+
+      async function handleGroupSearch() {
+        const query = groupSearchInput.value.trim();
+        if (query.length === 0) {
+          groupSearchDropdown.classList.remove("is-active");
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
+          );
+          if (!response.ok) throw new Error("Ошибка при поиске групп");
+          const data = await response.json();
+
+          groupSearchResults.innerHTML = "";
+          if (data.data && data.data.length > 0) {
+            data.data.forEach((group) => {
+              const item = document.createElement("a");
+              item.classList.add("dropdown-item");
+              item.textContent = group.fullTitle;
+              item.dataset.icalLink = group.iCalLink;
+              item.addEventListener("click", () => {
+                groupSearchInput.value = group.fullTitle;
+                linkInput.value = group.iCalLink;
+                selectedGroupName = group.fullTitle; // Сохраняем название группы
+                groupSearchDropdown.classList.remove("is-active");
+              });
+              groupSearchResults.appendChild(item);
+            });
+            groupSearchDropdown.classList.add("is-active");
+          } else {
+            groupSearchDropdown.classList.remove("is-active");
+          }
+        } catch (error) {
+          console.error(error.message);
+        }
+      }
+
+      // Закрытие выпадающего списка при клике вне его
+      document.addEventListener("click", (event) => {
+        if (
+          !groupSearchDropdown.contains(event.target) &&
+          event.target !== groupSearchInput
+        ) {
+          groupSearchDropdown.classList.remove("is-active");
+        }
+      });
+
+      // Обработчик формы загрузки
+      uploadForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        // Проверяем, какой ввод предоставлен
+        if (fileInput.files.length > 0) {
+          // Загрузить выбранный файл
+          const formData = new FormData();
+          formData.append("file", fileInput.files[0]);
+          try {
+            const response = await fetch(`${API_HOST}/add_file/`, {
+              method: "POST",
+              body: formData,
+            });
+            if (!response.ok) throw new Error("Ошибка при загрузке файла");
+            fetchFiles();
+          } catch (error) {
+            alert(error.message);
+          }
+        } else if (linkInput.value.trim() !== "") {
+          // Загрузить файл по ссылке из linkInput
+          try {
+            const fileBlob = await fetchFileFromUrl(linkInput.value.trim());
+            const formData = new FormData();
+
+            // Устанавливаем имя файла как {selectedGroupName}.ics, если выбрана группа, иначе default.ics
+            const fileName = selectedGroupName
+              ? `${selectedGroupName}.ics`
+              : "default.ics";
+            formData.append("file", fileBlob, fileName);
+
+            const response = await fetch(`${API_HOST}/add_file/`, {
+              method: "POST",
+              body: formData,
+            });
+            if (!response.ok) throw new Error("Ошибка при загрузке файла");
+            fetchFiles();
+          } catch (error) {
+            alert(error.message);
+          }
+        } else {
+          alert("Пожалуйста, выберите файл или введите ссылку для загрузки");
+        }
+      });
+
+      async function fetchFileFromUrl(url) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok)
+            throw new Error("Ошибка при получении файла по ссылке");
+          const blob = await response.blob();
+          return blob;
+        } catch (error) {
+          console.error(error.message);
+          throw error;
+        }
+      }
 
       // Обновить метку выбранного файла
       fileInput.addEventListener("change", () => {
@@ -240,6 +426,7 @@
       });
 
       // Получить и отобразить список файлов
+      let pairs = [];
       async function fetchFiles() {
         try {
           const response = await fetch(`${API_HOST}/files/`);
@@ -287,23 +474,6 @@
           alert(error.message);
         }
       }
-
-      // Загрузить файл
-      uploadForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
-        try {
-          const response = await fetch(`${API_HOST}/add_file/`, {
-            method: "POST",
-            body: formData,
-          });
-          if (!response.ok) throw new Error("Ошибка при загрузке файла");
-          fetchFiles();
-        } catch (error) {
-          alert(error.message);
-        }
-      });
 
       // Удалить файл
       async function deleteFile(fileId) {
