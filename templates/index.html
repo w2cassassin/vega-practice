@@ -85,28 +85,37 @@
         box-sizing: border-box;
       }
 
-      .dropdown {
-        width: 100%;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        z-index: 20;
+      .dropdown,
+      .dropdown .dropdown-menu {
+        display: none;
       }
 
-      .dropdown .dropdown-menu {
-        width: 100%;
-      }
       .field.is-grouped {
         display: flex;
         gap: 1rem;
       }
 
-      .field.is-grouped .control:last-child {
-        flex: 1;
+      .field.is-grouped > .control:first-child {
+        flex: 0 0 auto;
       }
 
-      .control:last-child .input {
+      .field.is-grouped > .control.is-expanded {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .field.has-addons {
+        display: flex;
         width: 100%;
+      }
+
+      .field.has-addons .control.is-expanded {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .field.has-addons .control:not(.is-expanded) {
+        flex: 0 0 auto;
       }
     </style>
   </head>
@@ -133,17 +142,24 @@
                   </label>
                 </div>
               </div>
-              <div class="control">
-                <input
-                  class="input"
-                  type="text"
-                  id="groupSearchInput"
-                  placeholder="Введите название группы"
-                  autocomplete="off"
-                />
-                <div class="dropdown" id="groupSearchDropdown">
-                  <div class="dropdown-menu">
-                    <div class="dropdown-content" id="groupSearchResults"></div>
+              <div class="control is-expanded">
+                <div class="field has-addons">
+                  <div class="control is-expanded">
+                    <input
+                      class="input"
+                      type="text"
+                      id="groupSearchInput"
+                      placeholder="Введите название группы"
+                    />
+                  </div>
+                  <div class="control">
+                    <button
+                      type="button"
+                      id="searchGroupButton"
+                      class="button is-info"
+                    >
+                      Найти
+                    </button>
                   </div>
                 </div>
               </div>
@@ -280,10 +296,6 @@
         "comparisonResultsBody"
       );
       const groupSearchInput = document.getElementById("groupSearchInput");
-      const groupSearchDropdown = document.getElementById(
-        "groupSearchDropdown"
-      );
-      const groupSearchResults = document.getElementById("groupSearchResults");
       const linkInput = document.getElementById("linkInput");
 
       // Обновить метку выбранного файла
@@ -306,15 +318,13 @@
       }
 
       // Обработчик поиска группы
-      groupSearchInput.addEventListener(
-        "input",
-        debounce(handleGroupSearch, 300)
-      );
+      const searchGroupButton = document.getElementById("searchGroupButton");
 
-      async function handleGroupSearch() {
+      // New group search handler
+      searchGroupButton.addEventListener("click", async () => {
         const query = groupSearchInput.value.trim();
         if (query.length === 0) {
-          groupSearchDropdown.classList.remove("is-active");
+          alert("Введите название группы");
           return;
         }
 
@@ -322,32 +332,23 @@
           const response = await fetch(
             `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
           );
-          if (!response.ok) throw new Error("Ошибка при поиске групп");
+          if (!response.ok) throw new Error("Ошибка при поиске группы");
           const data = await response.json();
 
-          groupSearchResults.innerHTML = "";
           if (data.data && data.data.length > 0) {
-            data.data.forEach((group) => {
-              const item = document.createElement("a");
-              item.classList.add("dropdown-item");
-              item.textContent = group.fullTitle;
-              item.dataset.icalLink = group.iCalLink;
-              item.addEventListener("click", () => {
-                groupSearchInput.value = group.fullTitle;
-                linkInput.value = group.iCalLink;
-                selectedGroupName = group.fullTitle; // Сохраняем название группы
-                groupSearchDropdown.classList.remove("is-active");
-              });
-              groupSearchResults.appendChild(item);
-            });
-            groupSearchDropdown.classList.add("is-active");
+            const group = data.data[0]; // Take first match
+            groupSearchInput.value = group.fullTitle;
+            linkInput.value = group.iCalLink;
+            selectedGroupName = group.fullTitle;
           } else {
-            groupSearchDropdown.classList.remove("is-active");
+            alert("Группа не найдена");
+            linkInput.value = "";
+            selectedGroupName = "";
           }
         } catch (error) {
-          console.error(error.message);
+          alert("Ошибка при поиске группы: " + error.message);
         }
-      }
+      });
 
       // Закрытие выпадающего списка при клике вне его
       document.addEventListener("click", (event) => {
@@ -384,7 +385,7 @@
             const fileBlob = await fetchFileFromUrl(linkInput.value.trim());
             const formData = new FormData();
 
-            // Устанавливаем имя файла как {selectedGroupName}.ics, если выбрана группа, иначе default.ics
+            // Устанавливаем имя файла как {selectedGroupName}.ics, есл�� выбрана группа, иначе default.ics
             const fileName = selectedGroupName
               ? `${selectedGroupName}.ics`
               : "default.ics";
