@@ -117,6 +117,63 @@
       .field.has-addons .control:not(.is-expanded) {
         flex: 0 0 auto;
       }
+      #searchGroupButton.is-empty {
+        background-color: #f14668;
+        border-color: transparent;
+        color: #fff;
+      }
+      
+      #searchGroupButton.is-ready {
+        background-color: #3298dc;
+        border-color: transparent;
+        color: #fff;
+      }
+      
+      #searchGroupButton.is-success {
+        background-color: #48c774;
+        border-color: transparent;
+        color: #fff;
+      }
+      .dropdown {
+        width: 100%;
+        position: relative;
+        display: block; 
+      }
+
+      .dropdown-menu {
+        width: 100%;
+        display: none;
+        position: absolute;
+        z-index: 20;
+      }
+
+      .dropdown.is-active .dropdown-menu {
+        display: block;
+      }
+
+      .dropdown-content {
+        background-color: white;
+        border-radius: 4px;
+        box-shadow: 0 2px 3px rgba(10, 10, 10, 0.1);
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dbdbdb;
+        margin-top: 4px;
+      }
+
+      .dropdown-item {
+        display: block;
+        padding: 0.375rem 1rem;
+        cursor: pointer;
+      }
+
+      .dropdown-item:hover {
+        background-color: #f5f5f5;
+      }
+
+      .control.is-expanded {
+        position: relative;
+      }
     </style>
   </head>
   <body>
@@ -151,6 +208,13 @@
                       id="groupSearchInput"
                       placeholder="Введите название группы"
                     />
+                    <div id="groupSearchDropdown" class="dropdown">
+                      <div class="dropdown-menu">
+                        <div class="dropdown-content" id="groupSearchResults">
+                          <!-- Search results will be populated here -->
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="control">
                     <button
@@ -329,6 +393,9 @@
         }
 
         try {
+          searchGroupButton.classList.remove('is-empty', 'is-ready', 'is-success');
+          searchGroupButton.classList.add('is-loading');
+          
           const response = await fetch(
             `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
           );
@@ -340,13 +407,18 @@
             groupSearchInput.value = group.fullTitle;
             linkInput.value = group.iCalLink;
             selectedGroupName = group.fullTitle;
+            searchGroupButton.classList.add('is-success');
           } else {
             alert("Группа не найдена");
             linkInput.value = "";
             selectedGroupName = "";
+            searchGroupButton.classList.add('is-empty');
           }
         } catch (error) {
           alert("Ошибка при поиске группы: " + error.message);
+          searchGroupButton.classList.add('is-empty');
+        } finally {
+          searchGroupButton.classList.remove('is-loading');
         }
       });
 
@@ -736,6 +808,113 @@
 
       // Загрузить список файлов при загрузке страницы
       fetchFiles();
+
+      // Update search button initially to empty state
+      searchGroupButton.classList.add('is-empty');
+
+      // Add input handler for group search
+      groupSearchInput.addEventListener('input', () => {
+        if (groupSearchInput.value.trim().length > 0) {
+          searchGroupButton.classList.remove('is-empty');
+          searchGroupButton.classList.add('is-ready');
+        } else {
+          searchGroupButton.classList.remove('is-ready', 'is-success');
+          searchGroupButton.classList.add('is-empty');
+        }
+      });
+
+      // Update search functionality
+      searchGroupButton.classList.add('is-empty');
+      searchGroupButton.disabled = true; // Initially disable button
+
+      // Debounced search function
+      const debouncedSearch = debounce(async (query) => {
+        const dropdownContent = document.getElementById('groupSearchResults');
+        const dropdown = document.getElementById('groupSearchDropdown');
+        
+        if (!query.trim()) {
+          searchGroupButton.classList.remove('is-ready', 'is-success');
+          searchGroupButton.classList.add('is-empty');
+          searchGroupButton.disabled = true;
+          linkInput.value = '';
+          dropdown.classList.remove('is-active');
+          return;
+        }
+
+        try {
+          searchGroupButton.classList.add('is-loading');
+          const response = await fetch(
+            `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
+          );
+          if (!response.ok) throw new Error("Ошибка при поиске группы");
+          const data = await response.json();
+
+          if (data.data && data.data.length > 0) {
+            // Populate dropdown with results
+            dropdownContent.innerHTML = data.data.map(group => `
+              <a class="dropdown-item" data-group='${JSON.stringify(group)}'>
+                ${group.fullTitle}
+              </a>
+            `).join('');
+            
+            dropdown.classList.add('is-active');
+            
+            // Add click handlers for dropdown items
+            dropdownContent.querySelectorAll('.dropdown-item').forEach(item => {
+              item.addEventListener('click', (e) => {
+                const groupData = JSON.parse(e.target.dataset.group);
+                groupSearchInput.value = groupData.fullTitle;
+                linkInput.value = groupData.iCalLink;
+                selectedGroupName = groupData.fullTitle;
+                dropdown.classList.remove('is-active');
+                searchGroupButton.classList.remove('is-empty', 'is-loading');
+                searchGroupButton.classList.add('is-success');
+              });
+            });
+
+            searchGroupButton.classList.remove('is-empty', 'is-loading');
+            searchGroupButton.classList.add('is-ready');
+            searchGroupButton.disabled = false;
+          } else {
+            dropdownContent.innerHTML = '<div class="dropdown-item">Группы не найдены</div>';
+            dropdown.classList.add('is-active');
+            searchGroupButton.classList.remove('is-ready', 'is-success', 'is-loading');
+            searchGroupButton.classList.add('is-empty');
+            searchGroupButton.disabled = true;
+            linkInput.value = '';
+          }
+        } catch (error) {
+          searchGroupButton.classList.remove('is-ready', 'is-success', 'is-loading');
+          searchGroupButton.classList.add('is-empty');
+          searchGroupButton.disabled = true;
+          linkInput.value = '';
+          dropdown.classList.remove('is-active');
+        }
+      }, 300);
+
+      // Add click outside handler to close dropdown
+      document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('groupSearchDropdown');
+        if (!dropdown.contains(e.target) && !groupSearchInput.contains(e.target)) {
+          dropdown.classList.remove('is-active');
+        }
+      });
+
+      // Live search handler
+      groupSearchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        debouncedSearch(query);
+      });
+
+      // Update button click handler
+      searchGroupButton.addEventListener("click", () => {
+        const groupData = JSON.parse(searchGroupButton.dataset.groupData || '{}');
+        if (groupData.fullTitle) {
+          groupSearchInput.value = groupData.fullTitle;
+          linkInput.value = groupData.iCalLink;
+          selectedGroupName = groupData.fullTitle;
+        }
+      });
     </script>
   </body>
 </html>
