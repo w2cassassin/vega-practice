@@ -122,13 +122,13 @@
         border-color: transparent;
         color: #fff;
       }
-      
+
       #searchGroupButton.is-ready {
         background-color: #3298dc;
         border-color: transparent;
         color: #fff;
       }
-      
+
       #searchGroupButton.is-success {
         background-color: #48c774;
         border-color: transparent;
@@ -137,7 +137,7 @@
       .dropdown {
         width: 100%;
         position: relative;
-        display: block; 
+        display: block;
       }
 
       .dropdown-menu {
@@ -393,9 +393,13 @@
         }
 
         try {
-          searchGroupButton.classList.remove('is-empty', 'is-ready', 'is-success');
-          searchGroupButton.classList.add('is-loading');
-          
+          searchGroupButton.classList.remove(
+            "is-empty",
+            "is-ready",
+            "is-success"
+          );
+          searchGroupButton.classList.add("is-loading");
+
           const response = await fetch(
             `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
           );
@@ -407,18 +411,18 @@
             groupSearchInput.value = group.fullTitle;
             linkInput.value = group.iCalLink;
             selectedGroupName = group.fullTitle;
-            searchGroupButton.classList.add('is-success');
+            searchGroupButton.classList.add("is-success");
           } else {
             alert("Группа не найдена");
             linkInput.value = "";
             selectedGroupName = "";
-            searchGroupButton.classList.add('is-empty');
+            searchGroupButton.classList.add("is-empty");
           }
         } catch (error) {
           alert("Ошибка при поиске группы: " + error.message);
-          searchGroupButton.classList.add('is-empty');
+          searchGroupButton.classList.add("is-empty");
         } finally {
-          searchGroupButton.classList.remove('is-loading');
+          searchGroupButton.classList.remove("is-loading");
         }
       });
 
@@ -694,35 +698,52 @@
                 groupDiv.appendChild(groupHeader);
 
                 const days = detailedChanges[group];
-                Object.keys(days).forEach((day) => {
-                  const dayDiv = document.createElement("div");
-                  dayDiv.style.marginLeft = "15px";
-                  const dayHeader = document.createElement("strong");
-                  dayHeader.textContent = day;
-                  dayDiv.appendChild(dayHeader);
+                // Check if days is a string (missing group message) or an object (lesson changes)
+                if (typeof days === 'string') {
+                    const messageDiv = document.createElement("div");
+                    messageDiv.style.marginLeft = "15px";
+                    messageDiv.textContent = days;
+                    groupDiv.appendChild(messageDiv);
+                } else {
+                    Object.keys(days).forEach((day) => {
+                        const dayDiv = document.createElement("div");
+                        dayDiv.style.marginLeft = "15px";
+                        const dayHeader = document.createElement("strong");
+                        dayHeader.textContent = day;
+                        dayDiv.appendChild(dayHeader);
 
-                  const lessons = days[day];
-                  Object.keys(lessons).forEach((lesson) => {
-                    const lessonDiv = document.createElement("div");
-                    lessonDiv.style.marginLeft = "30px";
-                    const lessonHeader = document.createElement("strong");
-                    lessonHeader.textContent = `Пара ${lesson}`;
-                    lessonDiv.appendChild(lessonHeader);
+                        const lessons = days[day];
+                        Object.keys(lessons).forEach((lesson) => {
+                            const lessonDiv = document.createElement("div");
+                            lessonDiv.style.marginLeft = "30px";
+                            const lessonHeader = document.createElement("strong");
+                            lessonHeader.textContent = `Пара ${lesson}`;
+                            lessonDiv.appendChild(lessonHeader);
 
-                    const changesList = document.createElement("ul");
-                    changesList.style.marginLeft = "45px";
-                    lessons[lesson].forEach((changeText) => {
-                      const li = document.createElement("li");
-                      li.textContent = changeText;
-                      changesList.appendChild(li);
+                            const changesList = document.createElement("ul");
+                            changesList.style.marginLeft = "45px";
+                            
+                            // Handle both array and string cases for lesson changes
+                            if (Array.isArray(lessons[lesson])) {
+                                lessons[lesson].forEach((changeText) => {
+                                    const li = document.createElement("li");
+                                    li.textContent = changeText;
+                                    changesList.appendChild(li);
+                                });
+                            } else {
+                                const li = document.createElement("li");
+                                li.textContent = lessons[lesson];
+                                changesList.appendChild(li);
+                            }
+                            
+                            lessonDiv.appendChild(changesList);
+                            dayDiv.appendChild(lessonDiv);
+                        });
+                        groupDiv.appendChild(dayDiv);
                     });
-                    lessonDiv.appendChild(changesList);
-                    dayDiv.appendChild(lessonDiv);
-                  });
-                  groupDiv.appendChild(dayDiv);
-                });
+                }
                 changesContainer.appendChild(groupDiv);
-              });
+            });
 
               changesCell.appendChild(changesContainer);
 
@@ -810,39 +831,39 @@
       fetchFiles();
 
       // Update search button initially to empty state
-      searchGroupButton.classList.add('is-empty');
+      searchGroupButton.classList.add("is-empty");
 
       // Add input handler for group search
-      groupSearchInput.addEventListener('input', () => {
+      groupSearchInput.addEventListener("input", () => {
         if (groupSearchInput.value.trim().length > 0) {
-          searchGroupButton.classList.remove('is-empty');
-          searchGroupButton.classList.add('is-ready');
+          searchGroupButton.classList.remove("is-empty");
+          searchGroupButton.classList.add("is-ready");
         } else {
-          searchGroupButton.classList.remove('is-ready', 'is-success');
-          searchGroupButton.classList.add('is-empty');
+          searchGroupButton.classList.remove("is-ready", "is-success");
+          searchGroupButton.classList.add("is-empty");
         }
       });
 
       // Update search functionality
-      searchGroupButton.classList.add('is-empty');
+      searchGroupButton.classList.add("is-empty");
       searchGroupButton.disabled = true; // Initially disable button
 
       // Debounced search function
       const debouncedSearch = debounce(async (query) => {
-        const dropdownContent = document.getElementById('groupSearchResults');
-        const dropdown = document.getElementById('groupSearchDropdown');
-        
+        const dropdownContent = document.getElementById("groupSearchResults");
+        const dropdown = document.getElementById("groupSearchDropdown");
+
         if (!query.trim()) {
-          searchGroupButton.classList.remove('is-ready', 'is-success');
-          searchGroupButton.classList.add('is-empty');
+          searchGroupButton.classList.remove("is-ready", "is-success");
+          searchGroupButton.classList.add("is-empty");
           searchGroupButton.disabled = true;
-          linkInput.value = '';
-          dropdown.classList.remove('is-active');
+          linkInput.value = "";
+          dropdown.classList.remove("is-active");
           return;
         }
 
         try {
-          searchGroupButton.classList.add('is-loading');
+          searchGroupButton.classList.add("is-loading");
           const response = await fetch(
             `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
           );
@@ -851,64 +872,84 @@
 
           if (data.data && data.data.length > 0) {
             // Populate dropdown with results
-            dropdownContent.innerHTML = data.data.map(group => `
+            dropdownContent.innerHTML = data.data
+              .map(
+                (group) => `
               <a class="dropdown-item" data-group='${JSON.stringify(group)}'>
                 ${group.fullTitle}
               </a>
-            `).join('');
-            
-            dropdown.classList.add('is-active');
-            
-            // Add click handlers for dropdown items
-            dropdownContent.querySelectorAll('.dropdown-item').forEach(item => {
-              item.addEventListener('click', (e) => {
-                const groupData = JSON.parse(e.target.dataset.group);
-                groupSearchInput.value = groupData.fullTitle;
-                linkInput.value = groupData.iCalLink;
-                selectedGroupName = groupData.fullTitle;
-                dropdown.classList.remove('is-active');
-                searchGroupButton.classList.remove('is-empty', 'is-loading');
-                searchGroupButton.classList.add('is-success');
-              });
-            });
+            `
+              )
+              .join("");
 
-            searchGroupButton.classList.remove('is-empty', 'is-loading');
-            searchGroupButton.classList.add('is-ready');
+            dropdown.classList.add("is-active");
+
+            // Add click handlers for dropdown items
+            dropdownContent
+              .querySelectorAll(".dropdown-item")
+              .forEach((item) => {
+                item.addEventListener("click", (e) => {
+                  const groupData = JSON.parse(e.target.dataset.group);
+                  groupSearchInput.value = groupData.fullTitle;
+                  linkInput.value = groupData.iCalLink;
+                  selectedGroupName = groupData.fullTitle;
+                  dropdown.classList.remove("is-active");
+                  searchGroupButton.classList.remove("is-empty", "is-loading");
+                  searchGroupButton.classList.add("is-success");
+                });
+              });
+
+            searchGroupButton.classList.remove("is-empty", "is-loading");
+            searchGroupButton.classList.add("is-ready");
             searchGroupButton.disabled = false;
           } else {
-            dropdownContent.innerHTML = '<div class="dropdown-item">Группы не найдены</div>';
-            dropdown.classList.add('is-active');
-            searchGroupButton.classList.remove('is-ready', 'is-success', 'is-loading');
-            searchGroupButton.classList.add('is-empty');
+            dropdownContent.innerHTML =
+              '<div class="dropdown-item">Группы не найдены</div>';
+            dropdown.classList.add("is-active");
+            searchGroupButton.classList.remove(
+              "is-ready",
+              "is-success",
+              "is-loading"
+            );
+            searchGroupButton.classList.add("is-empty");
             searchGroupButton.disabled = true;
-            linkInput.value = '';
+            linkInput.value = "";
           }
         } catch (error) {
-          searchGroupButton.classList.remove('is-ready', 'is-success', 'is-loading');
-          searchGroupButton.classList.add('is-empty');
+          searchGroupButton.classList.remove(
+            "is-ready",
+            "is-success",
+            "is-loading"
+          );
+          searchGroupButton.classList.add("is-empty");
           searchGroupButton.disabled = true;
-          linkInput.value = '';
-          dropdown.classList.remove('is-active');
+          linkInput.value = "";
+          dropdown.classList.remove("is-active");
         }
       }, 300);
 
       // Add click outside handler to close dropdown
-      document.addEventListener('click', (e) => {
-        const dropdown = document.getElementById('groupSearchDropdown');
-        if (!dropdown.contains(e.target) && !groupSearchInput.contains(e.target)) {
-          dropdown.classList.remove('is-active');
+      document.addEventListener("click", (e) => {
+        const dropdown = document.getElementById("groupSearchDropdown");
+        if (
+          !dropdown.contains(e.target) &&
+          !groupSearchInput.contains(e.target)
+        ) {
+          dropdown.classList.remove("is-active");
         }
       });
 
       // Live search handler
-      groupSearchInput.addEventListener('input', (e) => {
+      groupSearchInput.addEventListener("input", (e) => {
         const query = e.target.value.trim();
         debouncedSearch(query);
       });
 
       // Update button click handler
       searchGroupButton.addEventListener("click", () => {
-        const groupData = JSON.parse(searchGroupButton.dataset.groupData || '{}');
+        const groupData = JSON.parse(
+          searchGroupButton.dataset.groupData || "{}"
+        );
         if (groupData.fullTitle) {
           groupSearchInput.value = groupData.fullTitle;
           linkInput.value = groupData.iCalLink;

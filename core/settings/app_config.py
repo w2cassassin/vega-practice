@@ -10,7 +10,13 @@ class Settings(BaseSettings):
 
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
+
     ROOT_PATH: str
+    BASE_URL: str = "https://vega.mirea.ru"
+
+    @property
+    def API_URL(self) -> str:
+        return f"{self.BASE_URL}{self.ROOT_PATH}/api"
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str

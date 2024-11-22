@@ -10,8 +10,7 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/")
 async def get_index(request: Request):
-    scheme = request.headers.get("X-Forwarded-Proto", "http")
-    api_url = f"{scheme}://{request.base_url.netloc}{settings.ROOT_PATH}/api"
+    api_url = settings.API_URL
     return templates.TemplateResponse(
         "index.html", {"request": request, "api_url": api_url}
     )

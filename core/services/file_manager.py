@@ -6,11 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from core.db.models.schedule_files import ScheduleFile
+from core.services.content_converter import StandardContentConverter
 
 
 class FileManager:
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
+        self.content_converter = StandardContentConverter()
 
     async def list_files(self, visible=True):
         query = select(ScheduleFile).where(ScheduleFile.visible == visible)
@@ -37,16 +39,26 @@ class FileManager:
         return None
 
     async def save_file(self, file):
-        file_data = await file.read()  # Read file as binary data
+        file_data = await file.read()
+        file_format = file.filename.split(".")[-1].lower()
 
-        new_file = ScheduleFile(original_name=file.filename, file_data=file_data)
+        try:
+            standardized_content = self.content_converter.convert(
+                file_data, file_format
+            )
+        except ValueError:
+            standardized_content = None
+
+        new_file = ScheduleFile(
+            original_name=file.filename,
+            file_data=file_data,
+            standardized_content=standardized_content,
+        )
 
         self.db_session.add(new_file)
         await self.db_session.commit()
-        await self.db_session.refresh(new_file)  # Refresh to get the new ID
+        await self.db_session.refresh(new_file)
 
-        # Debug to ensure file ID exists
-        print(f"New file ID: {new_file.id}")
         return new_file
 
     async def save_file_from_bytes(
@@ -56,15 +68,23 @@ class FileManager:
     ):
         """Сохраняет файл, созданный вручную через BytesIO"""
         file_data = file.getvalue()
+        file_format = filename.split(".")[-1].lower()
+        try:
+            standardized_content = self.content_converter.convert(
+                file_data, file_format
+            )
+        except ValueError:
+            standardized_content = None
 
         new_file = ScheduleFile(
-            original_name=filename, file_data=file_data, visible=False
+            original_name=filename,
+            file_data=file_data,
+            standardized_content=standardized_content,
+            visible=False,
         )
 
         self.db_session.add(new_file)
         await self.db_session.commit()
         await self.db_session.refresh(new_file)
-
-        print(f"New file ID: {new_file.id}")
 
         return new_file
