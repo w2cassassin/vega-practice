@@ -49,6 +49,7 @@ class FileManager:
         except ValueError:
             standardized_content = None
 
+        print(standardized_content)
         new_file = ScheduleFile(
             original_name=file.filename,
             file_data=file_data,

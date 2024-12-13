@@ -12,11 +12,11 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
 
     ROOT_PATH: str
-    BASE_URL: str = "https://vega.mirea.ru"
+    BASE_HOST: str = "https://vega.mirea.ru"
 
     @property
     def API_URL(self) -> str:
-        return f"{self.BASE_URL}{self.ROOT_PATH}/api"
+        return f"{self.BASE_HOST}{self.ROOT_PATH}/api"
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"""postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"""
+
+    LESSON_TYPES: dict = {
+        "ПР": 0,
+        "ЛК": 1,
+        "ЛАБ": 2,
+        "ЭКЗ": 11,
+        "ЗАЧ": 12,
+        "ЗАЧ-Д": 13,
+        "КР": 14,
+        "КП": 15,
+        "СР": 16,
+    }
 
 
 settings = Settings()

@@ -1,9 +1,9 @@
-from sqlalchemy import Boolean, Column, LargeBinary, String, JSON
+from sqlalchemy import JSON, Boolean, Column, LargeBinary, String
 
-from core.db.base_class import Base
+from core.db.base_class import BaseWithTimestamp
 
 
-class ScheduleFile(Base):
+class ScheduleFile(BaseWithTimestamp):
     __tablename__ = "schedule_files"
 
     original_name = Column(String, nullable=False)

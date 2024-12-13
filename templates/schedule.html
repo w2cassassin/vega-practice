@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
+    <title>Управление расписанием</title>
+    <style>
+      .free-slot {
+        background-color: #c8f7c5;
+      }
+      .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .schedule-table th,
+      .schedule-table td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: center;
+        font-size: 0.95rem;
+      }
+      .schedule-table th {
+        background-color: #f5f5f5;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #fff;
+        min-width: 160px;
+        border: 1px solid #ccc;
+        z-index: 1;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .dropdown-item {
+        padding: 8px;
+        cursor: pointer;
+      }
+      .dropdown-item:hover {
+        background-color: #f1f1f1;
+      }
+      .selected-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 5px;
+      }
+      .selected-item {
+        background-color: #e7e7e7;
+        padding: 5px 10px;
+        border-radius: 4px;
+      }
+      .selected-item button {
+        margin-left: 5px;
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+      .filter {
+        margin-bottom: 1rem;
+      }
+      .day-separator td {
+        background-color: #f0f0f0;
+        font-weight: bold;
+        padding: 12px;
+        text-align: left;
+        border-bottom: 2px solid #ccc;
+      }
+      .pair-cell {
+        min-width: 200px;
+      }
+      .pair-time {
+        color: #666;
+        font-size: 0.85rem;
+      }
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      .schedule-container {
+        max-height: 80vh;
+        overflow-y: auto;
+        margin-top: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar is-light" role="navigation" aria-label="main navigation">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="{{ request.scope.root_path }}/">
+          <strong>Расписание</strong>
+        </a>
+      </div>
+
+      <div class="navbar-menu">
+        <div class="navbar-start">
+          <a class="navbar-item" href="{{ request.scope.root_path }}/">
+            Сравнение расписаний
+          </a>
+          <a class="navbar-item" href="{{ request.scope.root_path }}/schedule">
+            Просмотр расписания
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <section class="section">
+      <div class="container">
+        <h1 class="title">Управление расписанием</h1>
+
+        <div class="box">
+          <!-- Date range selection -->
+          <div class="field is-horizontal">
+            <div class="field-body">
+              <div class="field">
+                <label class="label">Дата начала</label>
+                <div class="control">
+                  <input class="input" type="date" id="dateFrom" />
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Дата окончания</label>
+                <div class="control">
+                  <input class="input" type="date" id="dateTo" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic filters with autocomplete -->
+          <div class="field">
+            <label class="label">Добавить фильтры</label>
+            <div class="buttons">
+              <button class="button is-primary" onclick="addFilter('group')">
+                + Группа
+              </button>
+              <button class="button is-info" onclick="addFilter('prep')">
+                + Преподаватель
+              </button>
+              <button class="button is-warning" onclick="addFilter('room')">
+                + Аудитория
+              </button>
+            </div>
+          </div>
+          <div id="filtersContainer"></div>
+
+          <button class="button is-success" onclick="loadSchedules()">
+            Показать расписание
+          </button>
+        </div>
+
+        <!-- Schedule display area -->
+        <div id="scheduleContainer" class="mt-4"></div>
+      </div>
+    </section>
+
+    <!-- Add loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="has-text-centered">
+        <div class="is-loading is-size-1">⌛</div>
+        <p class="mt-2">Загрузка расписания...</p>
+      </div>
+    </div>
+
+    <script>
+      const API_HOST = "{{ api_url }}";
+      const filters = []; // Array to hold selected filters
+      const scheduleData = {};
+      const semcode = 1; // Replace with actual semester code if needed
+      const PAIR_TIMES = {
+        1: "09:00 - 10:30",
+        2: "10:40 - 12:10",
+        3: "12:40 - 14:10",
+        4: "14:20 - 15:50",
+        5: "16:20 - 17:50",
+        6: "18:00 - 19:30",
+        7: "19:40 - 21:10",
+      };
+
+      function addFilter(type) {
+        const filterId = Date.now();
+        const filterDiv = document.createElement("div");
+        filterDiv.classList.add("field", "filter");
+        filterDiv.dataset.filterId = filterId;
+
+        filterDiv.innerHTML = `
+          <label class="label">${
+            type === "group"
+              ? "Группа"
+              : type === "prep"
+              ? "Преподаватель"
+              : "Аудитория"
+          }</label>
+          <div class="control">
+            <input class="input" type="text" oninput="showSuggestions(event, '${type}', ${filterId})" placeholder="Начните вводить...">
+            <div class="dropdown-content" id="dropdown-${filterId}"></div>
+            <div class="selected-items" id="selected-${filterId}"></div>
+          </div>
+        `;
+        document.getElementById("filtersContainer").appendChild(filterDiv);
+
+        filters.push({ id: filterId, type: type, values: [] });
+      }
+
+      async function showSuggestions(event, type, filterId) {
+        const query = event.target.value.trim();
+        if (query.length < 2) {
+          document.getElementById(`dropdown-${filterId}`).style.display =
+            "none";
+          return;
+        }
+        const response = await fetch(
+          `${API_HOST}/schedule/search?search_type=${type}&q=${encodeURIComponent(
+            query
+          )}`
+        );
+        const suggestions = await response.json();
+
+        const dropdown = document.getElementById(`dropdown-${filterId}`);
+        dropdown.innerHTML = "";
+        suggestions.forEach((item) => {
+          const itemDiv = document.createElement("div");
+          itemDiv.classList.add("dropdown-item");
+          itemDiv.textContent = item;
+          itemDiv.onclick = () => selectItem(filterId, item);
+          dropdown.appendChild(itemDiv);
+        });
+        dropdown.style.display = "block";
+      }
+
+      function selectItem(filterId, item) {
+        const filter = filters.find((f) => f.id === filterId);
+        if (!filter.values.includes(item)) {
+          filter.values.push(item);
+
+          const selectedItemsDiv = document.getElementById(
+            `selected-${filterId}`
+          );
+          const itemDiv = document.createElement("div");
+          itemDiv.classList.add("selected-item");
+          itemDiv.textContent = item;
+
+          const removeButton = document.createElement("button");
+          removeButton.innerHTML = "&times;";
+          removeButton.onclick = () => {
+            filter.values = filter.values.filter((v) => v !== item);
+            itemDiv.remove();
+          };
+          itemDiv.appendChild(removeButton);
+          selectedItemsDiv.appendChild(itemDiv);
+        }
+
+        // Hide dropdown
+        document.getElementById(`dropdown-${filterId}`).style.display = "none";
+        // Clear input
+        const inputField = document.querySelector(
+          `[data-filter-id="${filterId}"] .input`
+        );
+        inputField.value = "";
+      }
+
+      async function loadSchedules() {
+        const dateFrom = document.getElementById("dateFrom").value;
+        const dateTo = document.getElementById("dateTo").value;
+
+        if (!dateFrom || !dateTo) {
+          alert("Пожалуйста, выберите диапазон дат.");
+          return;
+        }
+
+        if (filters.length === 0) {
+          alert("Пожалуйста, добавьте хотя бы один фильтр.");
+          return;
+        }
+
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        loadingOverlay.style.display = "flex";
+
+        try {
+          // Clear ALL previous data
+          for (const key in scheduleData) {
+            delete scheduleData[key];
+          }
+
+          // Load new data for each selected value
+          for (const filter of filters) {
+            for (const value of filter.values) {
+              const response = await fetch(
+                `${API_HOST}/schedule/get?semcode=${semcode}&date_from=${dateFrom}&date_to=${dateTo}&filter_type=${
+                  filter.type
+                }&filter_value=${encodeURIComponent(value)}`
+              );
+              const data = await response.json();
+              if (data && data[value]) {
+                scheduleData[value] = data[value];
+              }
+            }
+          }
+
+          renderSchedules();
+        } catch (error) {
+          console.error("Error loading schedules:", error);
+          alert("Произошла ошибка при загрузке расписания");
+        } finally {
+          loadingOverlay.style.display = "none";
+        }
+      }
+
+      function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        const days = [
+          "Воскресенье",
+          "Понедельник",
+          "Вторник",
+          "Среда",
+          "Четверг",
+          "Пятница",
+          "Суббота",
+        ];
+        const months = [
+          "января",
+          "февраля",
+          "марта",
+          "апреля",
+          "мая",
+          "июня",
+          "июля",
+          "августа",
+          "сентября",
+          "октября",
+          "ноября",
+          "декабря",
+        ];
+
+        return `${days[date.getDay()]}, ${date.getDate()} ${
+          months[date.getMonth()]
+        } ${date.getFullYear()}`;
+      }
+
+      function renderSchedules() {
+        const container = document.getElementById("scheduleContainer");
+        container.innerHTML = "";
+
+        // Create schedule container with scroll
+        const scheduleContainer = document.createElement("div");
+        scheduleContainer.className = "schedule-container";
+
+        // Get all unique dates from all schedules
+        const allDates = new Set();
+        Object.values(scheduleData).forEach((schedule) => {
+          Object.keys(schedule).forEach((date) => allDates.add(date));
+        });
+
+        // Convert to array and sort
+        const dates = Array.from(allDates).sort();
+        if (dates.length === 0) {
+          container.innerHTML =
+            '<div class="notification is-warning">Нет данных для выбранного периода</div>';
+          return;
+        }
+
+        const entities = Object.keys(scheduleData);
+        const table = document.createElement("table");
+        table.className = "schedule-table";
+
+        // Create header
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        headerRow.innerHTML = `
+          <th style="width: 100px">Пара</th>
+          ${entities.map((e) => `<th class="pair-cell">${e}</th>`).join("")}
+        `;
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Create body
+        const tbody = document.createElement("tbody");
+
+        // For each date
+        for (const date of dates) {
+          // Add date separator
+          const dateRow = document.createElement("tr");
+          dateRow.className = "day-separator";
+          dateRow.innerHTML = `<td colspan="${
+            entities.length + 1
+          }">${formatDate(date)}</td>`;
+          tbody.appendChild(dateRow);
+
+          // For each pair
+          for (const pair of ["1", "2", "3", "4", "5", "6", "7"]) {
+            const row = document.createElement("tr");
+
+            // Add date and pair cells
+            row.innerHTML = `
+              <td>
+                <strong>${pair}</strong>
+                <div class="pair-time">${PAIR_TIMES[pair]}</div>
+              </td>
+            `;
+
+            let isFreeSlot = true;
+
+            // Add cells for each entity
+            for (const entity of entities) {
+              const pairData = scheduleData[entity]?.[date]?.[pair];
+              const cell = document.createElement("td");
+
+              if (pairData) {
+                isFreeSlot = false;
+                cell.innerHTML = `
+                  <strong>${pairData.lesson_type} ${
+                  pairData.subject
+                }</strong><br>
+                  ${
+                    pairData.teacher
+                      ? `<span class="has-text-grey">${pairData.teacher}</span><br>`
+                      : ""
+                  }
+                  ${
+                    pairData.room
+                      ? `<span class="has-text-info">${pairData.room}</span><br>`
+                      : ""
+                  }
+                `;
+              } else {
+                cell.textContent = "Свободно";
+              }
+              row.appendChild(cell);
+            }
+
+            if (isFreeSlot && entities.length > 0) {
+              row.classList.add("free-slot");
+            }
+
+            tbody.appendChild(row);
+          }
+        }
+
+        table.appendChild(tbody);
+        scheduleContainer.appendChild(table);
+        container.appendChild(scheduleContainer);
+      }
+
+      // Add event listener to close dropdown when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!e.target.matches(".input")) {
+          const dropdowns = document.querySelectorAll(".dropdown-content");
+          dropdowns.forEach((dropdown) => (dropdown.style.display = "none"));
+        }
+      });
+    </script>
+  </body>
+</html>

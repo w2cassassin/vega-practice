@@ -177,6 +177,25 @@
     </style>
   </head>
   <body>
+    <nav class="navbar is-light" role="navigation" aria-label="main navigation">
+      <div class="navbar-brand">
+        <a class="navbar-item" href="{{ request.scope.root_path }}/">
+          <strong>Расписание</strong>
+        </a>
+      </div>
+
+      <div class="navbar-menu">
+        <div class="navbar-start">
+          <a class="navbar-item" href="{{ request.scope.root_path }}/">
+            Сравнение расписаний
+          </a>
+          <a class="navbar-item" href="{{ request.scope.root_path }}/schedule">
+            Просмотр расписания
+          </a>
+        </div>
+      </div>
+    </nav>
+
     <section class="section">
       <div class="container">
         <h1 class="title">Сравнение расписаний</h1>
@@ -604,8 +623,12 @@
         document.querySelectorAll(".pair-selectors").forEach((pair) => {
           const fileId1 = pair.querySelector(".fileSelect1").value;
           const fileId2 = pair.querySelector(".fileSelect2").value;
-          if (fileId1 && fileId2 && fileId1 !== fileId2) {
-            pairs.push({ fileId1, fileId2 });
+          if (fileId1 && fileId2) {
+            if (fileId1 === fileId2) {
+              alert("Вы выбрали одинаковые файлы для сравнения. Пожалуйста, выберите разные файлы.");
+            } else {
+              pairs.push({ fileId1, fileId2 });
+            }
           }
         });
 
@@ -699,51 +722,51 @@
 
                 const days = detailedChanges[group];
                 // Check if days is a string (missing group message) or an object (lesson changes)
-                if (typeof days === 'string') {
-                    const messageDiv = document.createElement("div");
-                    messageDiv.style.marginLeft = "15px";
-                    messageDiv.textContent = days;
-                    groupDiv.appendChild(messageDiv);
+                if (typeof days === "string") {
+                  const messageDiv = document.createElement("div");
+                  messageDiv.style.marginLeft = "15px";
+                  messageDiv.textContent = days;
+                  groupDiv.appendChild(messageDiv);
                 } else {
-                    Object.keys(days).forEach((day) => {
-                        const dayDiv = document.createElement("div");
-                        dayDiv.style.marginLeft = "15px";
-                        const dayHeader = document.createElement("strong");
-                        dayHeader.textContent = day;
-                        dayDiv.appendChild(dayHeader);
+                  Object.keys(days).forEach((day) => {
+                    const dayDiv = document.createElement("div");
+                    dayDiv.style.marginLeft = "15px";
+                    const dayHeader = document.createElement("strong");
+                    dayHeader.textContent = day;
+                    dayDiv.appendChild(dayHeader);
 
-                        const lessons = days[day];
-                        Object.keys(lessons).forEach((lesson) => {
-                            const lessonDiv = document.createElement("div");
-                            lessonDiv.style.marginLeft = "30px";
-                            const lessonHeader = document.createElement("strong");
-                            lessonHeader.textContent = `Пара ${lesson}`;
-                            lessonDiv.appendChild(lessonHeader);
+                    const lessons = days[day];
+                    Object.keys(lessons).forEach((lesson) => {
+                      const lessonDiv = document.createElement("div");
+                      lessonDiv.style.marginLeft = "30px";
+                      const lessonHeader = document.createElement("strong");
+                      lessonHeader.textContent = `Пара ${lesson}`;
+                      lessonDiv.appendChild(lessonHeader);
 
-                            const changesList = document.createElement("ul");
-                            changesList.style.marginLeft = "45px";
-                            
-                            // Handle both array and string cases for lesson changes
-                            if (Array.isArray(lessons[lesson])) {
-                                lessons[lesson].forEach((changeText) => {
-                                    const li = document.createElement("li");
-                                    li.textContent = changeText;
-                                    changesList.appendChild(li);
-                                });
-                            } else {
-                                const li = document.createElement("li");
-                                li.textContent = lessons[lesson];
-                                changesList.appendChild(li);
-                            }
-                            
-                            lessonDiv.appendChild(changesList);
-                            dayDiv.appendChild(lessonDiv);
+                      const changesList = document.createElement("ul");
+                      changesList.style.marginLeft = "45px";
+
+                      // Handle both array and string cases for lesson changes
+                      if (Array.isArray(lessons[lesson])) {
+                        lessons[lesson].forEach((changeText) => {
+                          const li = document.createElement("li");
+                          li.textContent = changeText;
+                          changesList.appendChild(li);
                         });
-                        groupDiv.appendChild(dayDiv);
+                      } else {
+                        const li = document.createElement("li");
+                        li.textContent = lessons[lesson];
+                        changesList.appendChild(li);
+                      }
+
+                      lessonDiv.appendChild(changesList);
+                      dayDiv.appendChild(lessonDiv);
                     });
+                    groupDiv.appendChild(dayDiv);
+                  });
                 }
                 changesContainer.appendChild(groupDiv);
-            });
+              });
 
               changesCell.appendChild(changesContainer);
 

@@ -1,5 +1,7 @@
-from typing import Dict, Any
+from typing import Any, Dict
+
 from core.services.content_converter import WEEKDAYS
+
 
 class ScheduleCompareService:
     """Сервис для сравнения расписаний"""
@@ -49,29 +51,31 @@ class ScheduleCompareService:
                 str_lesson_num = str(lesson_num)
                 lesson1 = day_schedule1.get(str_lesson_num, {})
                 lesson2 = day_schedule2.get(str_lesson_num, {})
+                for week_type in ["even", "odd"]:
+                    lesson_data1 = lesson1.get(week_type, {})
+                    lesson_data2 = lesson2.get(week_type, {})
+                    if not lesson_data1 or not lesson_data2:
+                        if not lesson_data1:
+                            self._record_change(
+                                result,
+                                group,
+                                day,
+                                str_lesson_num,
+                                "Пара отсутствует в первом файле",
+                            )
+                        if not lesson_data2:
+                            self._record_change(
+                                result,
+                                group,
+                                day,
+                                str_lesson_num,
+                                "Пара отсутствует во втором файле",
+                            )
+                        continue
 
-                if not lesson1 or not lesson2:
-                    if not lesson1:
-                        self._record_change(
-                            result,
-                            group,
-                            day,
-                            str_lesson_num,
-                            "Пара отсутствует в первом файле",
-                        )
-                    if not lesson2:
-                        self._record_change(
-                            result,
-                            group,
-                            day,
-                            str_lesson_num,
-                            "Пара отсутствует во втором файле",
-                        )
-                    continue
-
-                self._compare_lesson_data(
-                    group, day, str_lesson_num, lesson1, lesson2, result
-                )
+                    self._compare_lesson_data(
+                        group, day, str_lesson_num, lesson_data1, lesson_data2, result
+                    )
 
     def _compare_lesson_data(
         self,

@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from core.api.router.excel.view import router as excel_router
+from core.api.router.api.file_routes import router as files_router
+from core.api.router.api.schedule_routes import router as schedule_router
 from core.api.router.view import router as main_router
-from core.api.sso import get_auth
 
-# router = APIRouter(dependencies=[Depends(get_auth)])
 router = APIRouter()
 
-router.include_router(excel_router)
+api_router = APIRouter(prefix="/api")
+api_router.include_router(files_router)
+api_router.include_router(schedule_router)
+
+router.include_router(api_router)
 router.include_router(main_router)

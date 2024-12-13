@@ -7,8 +7,6 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.status import HTTP_401_UNAUTHORIZED
 
-from core.settings.app_config import settings
-
 
 class JWTBearer(HTTPBearer):
     async def __call__(self, request: Request):

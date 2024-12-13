@@ -8,10 +8,15 @@ from core.settings.app_config import settings
 engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI,
     echo=False,
+    pool_size=10,
+    max_overflow=20,
 )
 Base = declarative_base()
 Session = sessionmaker(
-    bind=engine, expire_on_commit=False, class_=AsyncSession, future=True
+    bind=engine,
+    expire_on_commit=False,
+    class_=AsyncSession,
+    future=True,
 )
 
 
