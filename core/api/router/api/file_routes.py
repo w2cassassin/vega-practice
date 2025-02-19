@@ -1,16 +1,25 @@
 from urllib.parse import quote
+from typing import List
+from pydantic import BaseModel
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
-from core.api.router.api.depends import (get_compare_service, get_file_manager,
-                                         get_schedule_service)
+from core.api.router.api.depends import (
+    get_compare_service,
+    get_file_manager,
+    get_schedule_service,
+)
 from core.services.file_manager import FileManager
 from core.services.schedule_compare import ScheduleCompareService
 from core.services.schedule_service import ScheduleService
 
 router = APIRouter(tags=["files"])
+
+
+class GroupDownload(BaseModel):
+    groups: List[str]
 
 
 @router.post("/add_file/")
@@ -48,7 +57,7 @@ async def all_files(file_manager: FileManager = Depends(get_file_manager)):
                     "name": file.original_name,
                     "id": file.id,
                     "created_at": file.created_at,
-                    "standardized_content": file.standardized_content,
+                    "group_count": file.group_count,
                 }
                 for file in files
             ]
@@ -57,7 +66,7 @@ async def all_files(file_manager: FileManager = Depends(get_file_manager)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/delete_file/{file_id}")
+@router.delete("/files/{file_id}")
 async def delete_file(
     file_id: int, file_manager: FileManager = Depends(get_file_manager)
 ):
@@ -117,7 +126,7 @@ async def compare_files(
             file_1.standardized_content, file_2.standardized_content
         )
 
-        return {"metadata": result}
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -137,3 +146,24 @@ async def search_groups(match: str):
         raise HTTPException(status_code=500, detail=str(exc))
 
     return data
+
+
+@router.post("/download_groups/")
+async def download_groups(
+    request: GroupDownload, file_manager: FileManager = Depends(get_file_manager)
+):
+    """Download schedules for multiple groups and combine them"""
+    try:
+        new_file = await file_manager.download_group_schedules(request.groups)
+        return {
+            "id": new_file.id,
+            "name": new_file.original_name,
+            "created_at": new_file.created_at,
+            "group_count": new_file.group_count,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to download schedules: {str(e)}"
+        )

@@ -15,969 +15,726 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', path='/css/common.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', path='/css/pages.css') }}"
+    />
     <title>Сравнение расписаний</title>
-    <style>
-      #loading {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.8);
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-      }
-      #loading .spinner {
-        font-size: 3rem;
-      }
-      .pair-selectors {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        margin-bottom: 1rem;
-      }
-      .pair-and-result {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        flex-wrap: wrap;
-      }
-      .selectors-box {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        flex: 1;
-        min-width: 300px;
-      }
-      .select {
-        width: 100%;
-        max-width: 100%;
-      }
-
-      .select select {
-        width: 100%;
-        box-sizing: border-box;
-      }
-      .delete-pair-button {
-        align-self: center;
-      }
-      .comparison-table {
-        margin-top: 2rem;
-      }
-      .changes-row ul {
-        list-style-type: disc;
-        margin-left: 20px;
-      }
-
-      .changes-row div strong {
-        display: block;
-        margin-top: 10px;
-      }
-      .changes-container {
-        max-height: 300px;
-        overflow-y: auto;
-      }
-
-      .input {
-        max-width: 100%;
-        box-sizing: border-box;
-      }
-
-      .dropdown,
-      .dropdown .dropdown-menu {
-        display: none;
-      }
-
-      .field.is-grouped {
-        display: flex;
-        gap: 1rem;
-      }
-
-      .field.is-grouped > .control:first-child {
-        flex: 0 0 auto;
-      }
-
-      .field.is-grouped > .control.is-expanded {
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-
-      .field.has-addons {
-        display: flex;
-        width: 100%;
-      }
-
-      .field.has-addons .control.is-expanded {
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-
-      .field.has-addons .control:not(.is-expanded) {
-        flex: 0 0 auto;
-      }
-      #searchGroupButton.is-empty {
-        background-color: #f14668;
-        border-color: transparent;
-        color: #fff;
-      }
-
-      #searchGroupButton.is-ready {
-        background-color: #3298dc;
-        border-color: transparent;
-        color: #fff;
-      }
-
-      #searchGroupButton.is-success {
-        background-color: #48c774;
-        border-color: transparent;
-        color: #fff;
-      }
-      .dropdown {
-        width: 100%;
-        position: relative;
-        display: block;
-      }
-
-      .dropdown-menu {
-        width: 100%;
-        display: none;
-        position: absolute;
-        z-index: 20;
-      }
-
-      .dropdown.is-active .dropdown-menu {
-        display: block;
-      }
-
-      .dropdown-content {
-        background-color: white;
-        border-radius: 4px;
-        box-shadow: 0 2px 3px rgba(10, 10, 10, 0.1);
-        max-height: 200px;
-        overflow-y: auto;
-        border: 1px solid #dbdbdb;
-        margin-top: 4px;
-      }
-
-      .dropdown-item {
-        display: block;
-        padding: 0.375rem 1rem;
-        cursor: pointer;
-      }
-
-      .dropdown-item:hover {
-        background-color: #f5f5f5;
-      }
-
-      .control.is-expanded {
-        position: relative;
-      }
-    </style>
   </head>
   <body>
+    <!-- Навигация -->
     <nav class="navbar is-light" role="navigation" aria-label="main navigation">
-      <div class="navbar-brand">
-        <a class="navbar-item" href="{{ request.scope.root_path }}/">
-          <strong>Расписание</strong>
-        </a>
-      </div>
-
       <div class="navbar-menu">
         <div class="navbar-start">
-          <a class="navbar-item" href="{{ request.scope.root_path }}/">
+          <a
+            class="navbar-item {% if request.url.path == '/' %}is-active{% endif %}"
+            href="{{ request.scope.root_path }}/"
+          >
             Сравнение расписаний
           </a>
-          <a class="navbar-item" href="{{ request.scope.root_path }}/schedule">
+          <a
+            class="navbar-item {% if request.url.path == '/schedule' %}is-active{% endif %}"
+            href="{{ request.scope.root_path }}/schedule"
+          >
             Просмотр расписания
           </a>
+        </div>
+        <div class="navbar-end">
+          <div class="navbar-item theme-toggle-wrapper">
+            <button class="button theme-toggle" onclick="toggleTheme()">
+              <span class="icon"><i class="fas fa-moon"></i></span>
+            </button>
+          </div>
         </div>
       </div>
     </nav>
 
+    <!-- Основной контент -->
     <section class="section">
       <div class="container">
         <h1 class="title">Сравнение расписаний</h1>
 
-        <div class="box">
-          <h2 class="subtitle">Загрузка файла</h2>
-          <form id="uploadForm">
-            <div class="field is-grouped">
-              <div class="control">
-                <div class="file has-name">
-                  <label class="file-label">
-                    <input class="file-input" type="file" id="fileInput" />
-                    <span class="file-cta">
-                      <span class="file-icon">
-                        <i class="fas fa-upload"></i>
-                      </span>
-                      <span class="file-label"> Выберите файл… </span>
+        <div class="columns">
+          <!-- Groups Column -->
+          <div class="column">
+            <div class="box">
+              <h2 class="subtitle">Группы</h2>
+              <div id="selectedGroupsList">
+                <p class="has-text-grey">Список групп пуст</p>
+              </div>
+              <div class="search-container field has-addons">
+                <div class="control is-expanded" style="position: relative">
+                  <input
+                    type="text"
+                    id="groupSearchInput"
+                    class="input"
+                    placeholder="Введите название группы..."
+                  />
+                  <div id="groupSearchDropdown" class="dropdown">
+                    <div class="dropdown-menu">
+                      <div
+                        class="dropdown-content"
+                        id="groupSearchResults"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="control">
+                  <button id="addSelectedGroupButton" class="button is-primary">
+                    <span class="icon">
+                      <i class="fas fa-plus"></i>
                     </span>
-                    <span class="file-name" id="fileName">Файл не выбран</span>
-                  </label>
-                </div>
-              </div>
-              <div class="control is-expanded">
-                <div class="field has-addons">
-                  <div class="control is-expanded">
-                    <input
-                      class="input"
-                      type="text"
-                      id="groupSearchInput"
-                      placeholder="Введите название группы"
-                    />
-                    <div id="groupSearchDropdown" class="dropdown">
-                      <div class="dropdown-menu">
-                        <div class="dropdown-content" id="groupSearchResults">
-                          <!-- Search results will be populated here -->
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="control">
-                    <button
-                      type="button"
-                      id="searchGroupButton"
-                      class="button is-info"
-                    >
-                      Найти
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field">
-              <div class="control">
-                <label class="label">Ссылка на файл:</label>
-                <input
-                  class="input"
-                  type="text"
-                  id="linkInput"
-                  placeholder="Введите URL для загрузки"
-                />
-              </div>
-            </div>
-            <div class="field">
-              <button type="submit" class="button is-primary">Загрузить</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="box">
-          <h2 class="subtitle">Доступные файлы</h2>
-          <button id="refreshFiles" class="button is-info mb-4">
-            Обновить список файлов
-          </button>
-          <div id="fileList" class="table-container">
-            <table class="table is-fullwidth">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Название</th>
-                  <th>Дата создания</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
-              <tbody id="filesTableBody">
-                <!-- File rows will be populated here -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="box">
-          <h2 class="subtitle">Сравнение файлов</h2>
-          <form id="compareForm">
-            <div class="selectors-box" id="selectorsContainer">
-              <div class="pair-and-result">
-                <div class="pair-selectors">
-                  <div class="control">
-                    <div class="select">
-                      <select class="fileSelect1" required>
-                        <!-- File options will be populated here -->
-                      </select>
-                    </div>
-                  </div>
-                  <div class="control">
-                    <div class="select">
-                      <select class="fileSelect2" required>
-                        <!-- File options will be populated here -->
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    class="button is-danger is-light delete-pair-button"
-                  >
-                    Удалить
+                    <span>Добавить</span>
                   </button>
                 </div>
               </div>
             </div>
-            <div class="field">
-              <button type="button" id="addPairButton" class="button is-info">
-                Добавить еще пару
-              </button>
+          </div>
+
+          <!-- Versions Column -->
+          <div class="column">
+            <div class="box">
+              <h2 class="subtitle">Версии</h2>
+              <div id="versionsList">
+                <p class="has-text-grey">Список версий пуст</p>
+              </div>
+              <div class="field">
+                <button
+                  id="downloadGroupsButton"
+                  class="button is-primary is-fullwidth"
+                >
+                  <span class="icon"><i class="fas fa-download"></i></span>
+                  <span>Скачать группы</span>
+                </button>
+              </div>
             </div>
-            <div class="field">
-              <button
-                type="submit"
-                id="compareButton"
-                class="button is-primary"
-              >
-                Сравнить файлы
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
 
-        <div
-          id="comparisonResultsContainer"
-          class="box comparison-table"
-          style="display: none"
-        >
-          <h2 class="subtitle">Результаты сравнения</h2>
-          <table class="table is-fullwidth">
-            <thead>
-              <tr>
-                <th>Количество изменений</th>
-                <!-- Pair headers will be populated here -->
-                <th>Итоговые изменения</th>
-              </tr>
-            </thead>
-            <tbody id="comparisonResultsBody">
-              <!-- Comparison results will be populated here -->
-            </tbody>
-          </table>
+        <!-- Version Comparison -->
+        <div class="box">
+          <h2 class="subtitle">Сравнение версий</h2>
+          <div class="columns">
+            <div class="column">
+              <div class="field">
+                <label class="label">Левая версия</label>
+                <div class="control">
+                  <div class="select is-fullwidth">
+                    <select id="leftVersionSelect">
+                      <option value="">Нет версий</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="column">
+              <div class="field">
+                <label class="label">Правая версия</label>
+                <div class="control">
+                  <div class="select is-fullwidth">
+                    <select id="rightVersionSelect">
+                      <option value="">Нет версий</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <button
+              id="compareVersionsButton"
+              class="button is-info is-fullwidth"
+            >
+              Сравнить версии
+            </button>
+          </div>
+          <div id="comparisonResults" style="display: none">
+            <table class="table is-fullwidth">
+              <thead>
+                <tr>
+                  <th>Группа</th>
+                  <th>Отличий</th>
+                  <th>Подробности</th>
+                </tr>
+              </thead>
+              <tbody id="comparisonResultsBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
-    <div id="loading" class="has-text-centered">
-      <div class="spinner">
-        <i class="fas fa-spinner fa-pulse"></i>
+
+    <!-- Loading Modal -->
+    <div id="loading" class="modal">
+      <div class="modal-background"></div>
+      <div class="modal-content has-text-centered">
+        <span class="icon is-large">
+          <i class="fas fa-spinner fa-pulse fa-3x"></i>
+        </span>
+        <p style="color: white">Пожалуйста, подождите...</p>
       </div>
-      <p>Идет сравнение файлов, пожалуйста, подождите...</p>
     </div>
+
+    <!-- Скрипты -->
     <script>
       const API_HOST = "{{ api_url }}";
 
-      const fileInput = document.getElementById("fileInput");
-      const fileName = document.getElementById("fileName");
-      const filesTableBody = document.getElementById("filesTableBody");
-      const uploadForm = document.getElementById("uploadForm");
-      const compareForm = document.getElementById("compareForm");
-      const compareButton = document.getElementById("compareButton");
-      const refreshFiles = document.getElementById("refreshFiles");
-      const loadingIndicator = document.getElementById("loading");
-      const selectorsContainer = document.getElementById("selectorsContainer");
-      const addPairButton = document.getElementById("addPairButton");
-      const comparisonResultsContainer = document.getElementById(
-        "comparisonResultsContainer"
-      );
-      const comparisonResultsBody = document.getElementById(
-        "comparisonResultsBody"
-      );
+      function toggleTheme() {
+        const theme =
+          document.documentElement.getAttribute("data-theme") === "dark"
+            ? "light"
+            : "dark";
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("theme", theme);
+        updateThemeIcon();
+      }
+
+      function updateThemeIcon() {
+        const icon = document.querySelector(".theme-toggle .icon i");
+        if (document.documentElement.getAttribute("data-theme") === "dark") {
+          icon.classList.remove("fa-moon");
+          icon.classList.add("fa-sun");
+        } else {
+          icon.classList.remove("fa-sun");
+          icon.classList.add("fa-moon");
+        }
+      }
+
+      const savedTheme = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      window.addEventListener("DOMContentLoaded", updateThemeIcon);
+
+      let versions = [];
+      let selectedGroups = [];
+
+      async function fetchVersions() {
+        try {
+          const response = await fetch(`${API_HOST}/files/`);
+          if (!response.ok)
+            throw new Error("Ошибка при получении списка версий");
+          const data = await response.json();
+          versions = data.files;
+          renderVersions();
+          renderVersionOptions();
+        } catch (error) {
+          console.error(error);
+          alert(error.message);
+        }
+      }
+
+      const selectedGroupsList = document.getElementById("selectedGroupsList");
       const groupSearchInput = document.getElementById("groupSearchInput");
-      const linkInput = document.getElementById("linkInput");
+      const groupSearchDropdown = document.getElementById(
+        "groupSearchDropdown"
+      );
+      const groupSearchResults = document.getElementById("groupSearchResults");
+      const addSelectedGroupButton = document.getElementById(
+        "addSelectedGroupButton"
+      );
 
-      // Обновить метку выбранного файла
-      fileInput.addEventListener("change", () => {
-        fileName.textContent =
-          fileInput.files.length > 0
-            ? fileInput.files[0].name
-            : "Файл не выбран";
-      });
+      function renderSelectedGroups() {
+        selectedGroupsList.innerHTML = "";
+        if (selectedGroups.length === 0) {
+          selectedGroupsList.innerHTML =
+            '<p class="has-text-grey">Список групп пуст</p>';
+          return;
+        }
+        selectedGroups.forEach((group, index) => {
+          const tag = document.createElement("span");
+          tag.className = "tag is-info is-medium";
+          tag.textContent = group.fullTitle;
+          tag.style.marginRight = "1rem";
+          tag.style.marginTop = "1rem";
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "delete is-small";
+          deleteBtn.style.marginLeft = "0.5rem";
+          deleteBtn.addEventListener("click", () => {
+            selectedGroups.splice(index, 1);
+            renderSelectedGroups();
+          });
+          tag.appendChild(deleteBtn);
+          selectedGroupsList.appendChild(tag);
+        });
+      }
 
-      // Функция дебаунса
       function debounce(func, delay) {
-        let debounceTimer;
-        return function () {
-          const context = this;
-          const args = arguments;
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => func.apply(context, args), delay);
+        let timeout;
+        return function (...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), delay);
         };
       }
 
-      // Обработчик поиска группы
-      const searchGroupButton = document.getElementById("searchGroupButton");
-
-      // New group search handler
-      searchGroupButton.addEventListener("click", async () => {
-        const query = groupSearchInput.value.trim();
-        if (query.length === 0) {
-          alert("Введите название группы");
+      async function searchGroups(query) {
+        if (!query.trim()) {
+          groupSearchDropdown.classList.remove("is-active");
+          clearSearchResults();
           return;
         }
-
         try {
-          searchGroupButton.classList.remove(
-            "is-empty",
-            "is-ready",
-            "is-success"
-          );
-          searchGroupButton.classList.add("is-loading");
-
           const response = await fetch(
             `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
           );
-          if (!response.ok) throw new Error("Ошибка при поиске группы");
+          if (!response.ok) throw new Error("Ошибка поиска групп");
           const data = await response.json();
-
           if (data.data && data.data.length > 0) {
-            const group = data.data[0]; // Take first match
-            groupSearchInput.value = group.fullTitle;
-            linkInput.value = group.iCalLink;
-            selectedGroupName = group.fullTitle;
-            searchGroupButton.classList.add("is-success");
+            groupSearchResults.innerHTML = data.data
+              .map((group) => {
+                const minGroup = {
+                  id: group.id,
+                  fullTitle: group.fullTitle,
+                };
+                return `<a class="dropdown-item" data-group='${JSON.stringify(
+                  minGroup
+                )}'>${group.fullTitle}</a>`;
+              })
+              .join("");
+            groupSearchDropdown.classList.add("is-active");
+
+            document
+              .querySelectorAll("#groupSearchResults .dropdown-item")
+              .forEach((item) => {
+                item.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  const group = JSON.parse(item.getAttribute("data-group"));
+                  groupSearchInput.value = group.fullTitle;
+                  selectedGroupToAdd = group;
+                  updateAddButtonState();
+                  groupSearchDropdown.classList.remove("is-active");
+                });
+              });
           } else {
-            alert("Группа не найдена");
-            linkInput.value = "";
-            selectedGroupName = "";
-            searchGroupButton.classList.add("is-empty");
+            groupSearchResults.innerHTML =
+              '<div class="dropdown-item">Группы не найдены</div>';
+            groupSearchDropdown.classList.add("is-active");
+            clearSearchResults();
           }
         } catch (error) {
-          alert("Ошибка при поиске группы: " + error.message);
-          searchGroupButton.classList.add("is-empty");
-        } finally {
-          searchGroupButton.classList.remove("is-loading");
+          console.error(error);
+          clearSearchResults();
         }
+      }
+
+      const debouncedSearchGroups = debounce(searchGroups, 300);
+      groupSearchInput.addEventListener("input", (e) => {
+        debouncedSearchGroups(e.target.value);
       });
 
-      // Закрытие выпадающего списка при клике вне его
-      document.addEventListener("click", (event) => {
+      document.addEventListener("click", (e) => {
         if (
-          !groupSearchDropdown.contains(event.target) &&
-          event.target !== groupSearchInput
+          !groupSearchDropdown.contains(e.target) &&
+          e.target !== groupSearchInput
         ) {
           groupSearchDropdown.classList.remove("is-active");
         }
       });
 
-      // Обработчик формы загрузки
-      uploadForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
+      let selectedGroupToAdd = null;
 
-        // Проверяем, какой ввод предоставлен
-        if (fileInput.files.length > 0) {
-          // Загрузить выбранный файл
-          const formData = new FormData();
-          formData.append("file", fileInput.files[0]);
-          try {
-            const response = await fetch(`${API_HOST}/add_file/`, {
-              method: "POST",
-              body: formData,
-            });
-            if (!response.ok) throw new Error("Ошибка при загрузке файла");
-            fetchFiles();
-          } catch (error) {
-            alert(error.message);
-          }
-        } else if (linkInput.value.trim() !== "") {
-          // Загрузить файл по ссылке из linkInput
-          try {
-            const fileBlob = await fetchFileFromUrl(linkInput.value.trim());
-            const formData = new FormData();
+      function updateAddButtonState() {
+        addSelectedGroupButton.disabled = !selectedGroupToAdd;
+      }
 
-            // Устанавливаем имя файла как {selectedGroupName}.ics, есл�� выбрана группа, иначе default.ics
-            const fileName = selectedGroupName
-              ? `${selectedGroupName}.ics`
-              : "default.ics";
-            formData.append("file", fileBlob, fileName);
+      function clearSearchResults() {
+        selectedGroupToAdd = null;
+        updateAddButtonState();
+        const activeItems = document.querySelectorAll(
+          ".dropdown-item.is-active"
+        );
+        activeItems.forEach((item) => item.classList.remove("is-active"));
+      }
 
-            const response = await fetch(`${API_HOST}/add_file/`, {
-              method: "POST",
-              body: formData,
-            });
-            if (!response.ok) throw new Error("Ошибка при загрузке файла");
-            fetchFiles();
-          } catch (error) {
-            alert(error.message);
-          }
-        } else {
-          alert("Пожалуйста, выберите файл или введите ссылку для загрузки");
+      addSelectedGroupButton.addEventListener("click", () => {
+        if (
+          selectedGroupToAdd &&
+          !selectedGroups.find(
+            (g) => g.fullTitle === selectedGroupToAdd.fullTitle
+          )
+        ) {
+          selectedGroups.push(selectedGroupToAdd);
+          renderSelectedGroups();
+          groupSearchInput.value = "";
+          groupSearchDropdown.classList.remove("is-active");
+          clearSearchResults();
         }
       });
 
-      async function fetchFileFromUrl(url) {
-        try {
-          const response = await fetch(url);
-          if (!response.ok)
-            throw new Error("Ошибка при получении файла по ссылке");
-          const blob = await response.blob();
-          return blob;
-        } catch (error) {
-          console.error(error.message);
-          throw error;
-        }
-      }
+      const versionsList = document.getElementById("versionsList");
+      const leftVersionSelect = document.getElementById("leftVersionSelect");
+      const rightVersionSelect = document.getElementById("rightVersionSelect");
+      const downloadGroupsButton = document.getElementById(
+        "downloadGroupsButton"
+      );
 
-      // Обновить метку выбранного файла
-      fileInput.addEventListener("change", () => {
-        fileName.textContent =
-          fileInput.files.length > 0
-            ? fileInput.files[0].name
-            : "Файл не выбран";
-      });
-
-      // Получить и отобразить список файлов
-      let pairs = [];
-      async function fetchFiles() {
-        try {
-          const response = await fetch(`${API_HOST}/files/`);
-          if (!response.ok)
-            throw new Error("Ошибка при получении списка файлов");
-          const data = await response.json();
-          filesTableBody.innerHTML = "";
-          document
-            .querySelectorAll(".fileSelect1, .fileSelect2")
-            .forEach((select) => (select.innerHTML = ""));
-          data.files
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            .forEach((file) => {
-              const formattedDate = new Date(file.created_at).toLocaleString(
-                "ru-RU",
-                {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                }
-              );
-              const row = `<tr>
-                        <td>${file.id}</td>
-                        <td>${file.name}</td>
-                        <td>${formattedDate}</td>
-                        <td>
-                            <button class="button is-danger is-small" onclick="deleteFile(${file.id})">Удалить</button>
-                        </td>
-                    </tr>`;
-              filesTableBody.innerHTML += row;
-
-              const option1 = document.createElement("option");
-              option1.value = file.id;
-              option1.textContent = `${file.name} (${formattedDate})`;
-              document
-                .querySelectorAll(".fileSelect1, .fileSelect2")
-                .forEach((select) =>
-                  select.appendChild(option1.cloneNode(true))
-                );
-            });
-        } catch (error) {
-          alert(error.message);
-        }
-      }
-
-      // Удалить файл
-      async function deleteFile(fileId) {
-        try {
-          const response = await fetch(`${API_HOST}/delete_file/${fileId}`, {
-            method: "DELETE",
-          });
-          if (!response.ok) throw new Error("Ошибка при удалении файла");
-          fetchFiles();
-        } catch (error) {
-          alert(error.message);
-        }
-      }
-
-      // Добавить пару файлов для сравнения
-      addPairButton.addEventListener("click", () => {
-        const newPair = document.createElement("div");
-        newPair.classList.add("pair-and-result");
-        newPair.innerHTML = `
-          <div class="pair-selectors">
-            <div class="control">
-              <div class="select">
-                <select class="fileSelect1" required>
-                  ${document.querySelector(".fileSelect1").innerHTML}
-                </select>
-              </div>
-            </div>
-            <div class="control">
-              <div class="select">
-                <select class="fileSelect2" required>
-                  ${document.querySelector(".fileSelect2").innerHTML}
-                </select>
-              </div>
-            </div>
-            <button type="button" class="button is-danger is-light delete-pair-button">Удалить</button>
-          </div>
-        `;
-        selectorsContainer.appendChild(newPair);
-
-        newPair
-          .querySelector(".delete-pair-button")
-          .addEventListener("click", () => {
-            newPair.remove();
-          });
-      });
-
-      // Сравнить файлы
-      compareForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        pairs = [];
-        document.querySelectorAll(".pair-selectors").forEach((pair) => {
-          const fileId1 = pair.querySelector(".fileSelect1").value;
-          const fileId2 = pair.querySelector(".fileSelect2").value;
-          if (fileId1 && fileId2) {
-            if (fileId1 === fileId2) {
-              alert("Вы выбрали одинаковые файлы для сравнения. Пожалуйста, выберите разные файлы.");
-            } else {
-              pairs.push({ fileId1, fileId2 });
-            }
-          }
-        });
-
-        if (pairs.length === 0) {
-          alert("Пожалуйста, добавьте хотя бы одну пару для сравнения");
+      async function deleteVersion(versionId) {
+        if (!confirm("Вы уверены, что хотите удалить эту версию?")) {
           return;
         }
 
-        loadingIndicator.style.display = "flex";
-        compareButton.disabled = true;
-
-        comparisonResultsBody.innerHTML = "";
-        // Выбираем заголовок таблицы результатов сравнения
-        const headerRow = document.querySelector(
-          "#comparisonResultsContainer thead tr"
-        );
-        headerRow.innerHTML = "<th>Количество изменений</th>";
-
+        showLoading();
         try {
-          for (const pair of pairs) {
-            const { fileId1, fileId2 } = pair;
-            const response = await fetch(
-              `${API_HOST}/compare_files/?file_id_1=${fileId1}&file_id_2=${fileId2}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: "",
-              }
-            );
-            if (!response.ok) throw new Error("Ошибка при сравнении файлов");
-            const result = await response.json();
-
-            // Добавление заголовка для текущей пары файлов
-            const headerCell = document.createElement("th");
-            headerCell.textContent = `id ${fileId1} & ${fileId2}`;
-            headerRow.appendChild(headerCell);
-
-            // Добавление результатов в таблицу
-            const changesData = [
-              { name: "Предметов", value: result.metadata.title },
-              { name: "Преподавателей", value: result.metadata.fio },
-              { name: "Аудиторий", value: result.metadata.room },
-              { name: "Кампусов", value: result.metadata.campus },
-            ];
-
-            // Обработка каждого типа изменений
-            changesData.forEach((change, index) => {
-              let row = comparisonResultsBody.children[index];
-              if (!row) {
-                row = document.createElement("tr");
-                row.innerHTML = `<td>${change.name}</td>`;
-                comparisonResultsBody.appendChild(row);
-              }
-              const cell = document.createElement("td");
-              cell.textContent = change.value;
-              row.appendChild(cell);
-            });
-
-            // Обработка детальных изменений
-            const detailedChanges = result.metadata.changes || {};
-            let changesRowIndex = changesData.length; // Индекс для строки с изменениями
-            let changesRow = comparisonResultsBody.children[changesRowIndex];
-            if (!changesRow) {
-              changesRow = document.createElement("tr");
-              changesRow.classList.add("changes-row");
-              changesRow.innerHTML = `<td>Изменения</td>`;
-              comparisonResultsBody.appendChild(changesRow);
-            }
-            const changesCell = document.createElement("td");
-
-            // Если есть изменения, добавляем кнопку для показа/скрытия
-            if (Object.keys(detailedChanges).length > 0) {
-              const button = document.createElement("button");
-              button.classList.add("button", "is-small");
-              button.textContent = "Показать изменения";
-              changesCell.appendChild(button);
-
-              const changesContainer = document.createElement("div");
-              changesContainer.classList.add("changes-container");
-              changesContainer.style.display = "none";
-              changesContainer.style.marginTop = "10px";
-
-              // Создаем список изменений
-              Object.keys(detailedChanges).forEach((group) => {
-                const groupDiv = document.createElement("div");
-                const groupHeader = document.createElement("strong");
-                groupHeader.textContent = group;
-                groupDiv.appendChild(groupHeader);
-
-                const days = detailedChanges[group];
-                // Check if days is a string (missing group message) or an object (lesson changes)
-                if (typeof days === "string") {
-                  const messageDiv = document.createElement("div");
-                  messageDiv.style.marginLeft = "15px";
-                  messageDiv.textContent = days;
-                  groupDiv.appendChild(messageDiv);
-                } else {
-                  Object.keys(days).forEach((day) => {
-                    const dayDiv = document.createElement("div");
-                    dayDiv.style.marginLeft = "15px";
-                    const dayHeader = document.createElement("strong");
-                    dayHeader.textContent = day;
-                    dayDiv.appendChild(dayHeader);
-
-                    const lessons = days[day];
-                    Object.keys(lessons).forEach((lesson) => {
-                      const lessonDiv = document.createElement("div");
-                      lessonDiv.style.marginLeft = "30px";
-                      const lessonHeader = document.createElement("strong");
-                      lessonHeader.textContent = `Пара ${lesson}`;
-                      lessonDiv.appendChild(lessonHeader);
-
-                      const changesList = document.createElement("ul");
-                      changesList.style.marginLeft = "45px";
-
-                      // Handle both array and string cases for lesson changes
-                      if (Array.isArray(lessons[lesson])) {
-                        lessons[lesson].forEach((changeText) => {
-                          const li = document.createElement("li");
-                          li.textContent = changeText;
-                          changesList.appendChild(li);
-                        });
-                      } else {
-                        const li = document.createElement("li");
-                        li.textContent = lessons[lesson];
-                        changesList.appendChild(li);
-                      }
-
-                      lessonDiv.appendChild(changesList);
-                      dayDiv.appendChild(lessonDiv);
-                    });
-                    groupDiv.appendChild(dayDiv);
-                  });
-                }
-                changesContainer.appendChild(groupDiv);
-              });
-
-              changesCell.appendChild(changesContainer);
-
-              button.addEventListener("click", () => {
-                if (changesContainer.style.display === "none") {
-                  changesContainer.style.display = "block";
-                  button.textContent = "Скрыть изменения";
-                } else {
-                  changesContainer.style.display = "none";
-                  button.textContent = "Показать изменения";
-                }
-              });
-            } else {
-              // Если изменений нет, отображаем соответствующее сообщение
-              changesCell.textContent = "Нет изменений";
-            }
-
-            changesRow.appendChild(changesCell);
-
-            // Добавление кнопки для скачивания файла сравнения
-            let downloadRow =
-              comparisonResultsBody.querySelector(".download-row");
-            if (!downloadRow) {
-              downloadRow = document.createElement("tr");
-              downloadRow.classList.add("download-row");
-              downloadRow.innerHTML = `<td>Файл сравнения</td>`;
-              comparisonResultsBody.appendChild(downloadRow);
-            }
-
-            const downloadCell = document.createElement("td");
-            const downloadButton = document.createElement("a");
-            downloadButton.classList.add("button", "is-small", "is-info");
-            if (result.download_url) {
-              downloadButton.href = result.download_url;
-              downloadButton.textContent = "Скачать";
-            } else {
-              downloadButton.textContent = "-";
-              downloadButton.classList.add("is-static"); // Делает кнопку неактивной
-            }
-            downloadCell.appendChild(downloadButton);
-            downloadRow.appendChild(downloadCell);
-          }
-
-          // Добавление итогового заголовка "Итого"
-          const totalChangesHeader = document.createElement("th");
-          totalChangesHeader.textContent = "Итого";
-          headerRow.appendChild(totalChangesHeader);
-
-          // Подсчет итоговых изменений для каждой строки
-          document
-            .querySelectorAll("#comparisonResultsBody tr")
-            .forEach((row) => {
-              if (
-                !row.classList.contains("download-row") &&
-                !row.classList.contains("changes-row")
-              ) {
-                const sum = Array.from(
-                  row.querySelectorAll("td:not(:first-child)")
-                )
-                  .map((cell) => parseInt(cell.textContent) || 0)
-                  .reduce((a, b) => a + b, 0);
-                const totalCell = document.createElement("td");
-                totalCell.textContent = sum;
-                row.appendChild(totalCell);
-              } else {
-                const totalCell = document.createElement("td");
-                totalCell.textContent = "";
-                row.appendChild(totalCell);
-              }
-            });
-
-          comparisonResultsContainer.style.display = "block";
+          const response = await fetch(`${API_HOST}/files/${versionId}`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Ошибка при удалении версии");
+          await fetchVersions();
         } catch (error) {
           alert(error.message);
         } finally {
-          loadingIndicator.style.display = "none";
-          compareButton.disabled = false;
+          hideLoading();
         }
-      });
+      }
 
-      // Кнопка обновления списка файлов
-      refreshFiles.addEventListener("click", fetchFiles);
-
-      // Загрузить список файлов при загрузке страницы
-      fetchFiles();
-
-      // Update search button initially to empty state
-      searchGroupButton.classList.add("is-empty");
-
-      // Add input handler for group search
-      groupSearchInput.addEventListener("input", () => {
-        if (groupSearchInput.value.trim().length > 0) {
-          searchGroupButton.classList.remove("is-empty");
-          searchGroupButton.classList.add("is-ready");
-        } else {
-          searchGroupButton.classList.remove("is-ready", "is-success");
-          searchGroupButton.classList.add("is-empty");
+      function renderVersions() {
+        versionsList.innerHTML = "";
+        if (versions.length === 0) {
+          versionsList.innerHTML =
+            '<p class="has-text-grey">Список версий пуст</p>';
+          return;
         }
-      });
+        versions
+          .slice()
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .forEach((version) => {
+            const box = document.createElement("div");
+            box.className = "version-box box";
+            const date = new Date(version.created_at).toLocaleString("ru-RU");
+            box.innerHTML = `
+            <div class="version-info">
+              <span class="version-date">${date}</span>
+              <span class="version-count">${version.group_count} групп</span>
+            </div>
+            <button class="version-delete" title="Удалить версию" onclick="deleteVersion('${version.id}')">
+              <i class="fas fa-times"></i>
+            </button>
+          `;
+            versionsList.appendChild(box);
+          });
+      }
 
-      // Update search functionality
-      searchGroupButton.classList.add("is-empty");
-      searchGroupButton.disabled = true; // Initially disable button
+      function renderVersionOptions() {
+        leftVersionSelect.innerHTML = "";
+        rightVersionSelect.innerHTML = "";
 
-      // Debounced search function
-      const debouncedSearch = debounce(async (query) => {
-        const dropdownContent = document.getElementById("groupSearchResults");
-        const dropdown = document.getElementById("groupSearchDropdown");
-
-        if (!query.trim()) {
-          searchGroupButton.classList.remove("is-ready", "is-success");
-          searchGroupButton.classList.add("is-empty");
-          searchGroupButton.disabled = true;
-          linkInput.value = "";
-          dropdown.classList.remove("is-active");
+        if (versions.length === 0) {
+          leftVersionSelect.innerHTML = '<option value="">Нет версий</option>';
+          rightVersionSelect.innerHTML = '<option value="">Нет версий</option>';
           return;
         }
 
+        const sortedVersions = versions
+          .slice()
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        sortedVersions.forEach((version) => {
+          const date = new Date(version.created_at).toLocaleString("ru-RU");
+          const option = document.createElement("option");
+          option.value = version.id;
+          option.textContent = `${date} (${version.group_count} групп)`;
+
+          leftVersionSelect.appendChild(option.cloneNode(true));
+          rightVersionSelect.appendChild(option.cloneNode(true));
+        });
+
+        if (sortedVersions.length >= 2) {
+          rightVersionSelect.value = sortedVersions[0].id;
+          leftVersionSelect.value = sortedVersions[1].id;
+        } else if (sortedVersions.length === 1) {
+          rightVersionSelect.value = sortedVersions[0].id;
+        }
+      }
+
+      downloadGroupsButton.addEventListener("click", async () => {
+        if (selectedGroups.length === 0) {
+          alert("Сначала выберите группы");
+          return;
+        }
+        showLoading();
         try {
-          searchGroupButton.classList.add("is-loading");
+          const groupsArray = selectedGroups.map((group) => group.fullTitle);
+          const response = await fetch(`${API_HOST}/download_groups/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ groups: groupsArray }),
+          });
+          if (!response.ok) throw new Error("Ошибка при загрузке групп");
+          await response.json();
+          await fetchVersions();
+        } catch (error) {
+          alert(error.message);
+        } finally {
+          hideLoading();
+        }
+      });
+
+      const compareVersionsButton = document.getElementById(
+        "compareVersionsButton"
+      );
+      const comparisonResults = document.getElementById("comparisonResults");
+      const comparisonResultsBody = document.getElementById(
+        "comparisonResultsBody"
+      );
+
+      compareVersionsButton.addEventListener("click", async () => {
+        const leftVersionId = leftVersionSelect.value;
+        const rightVersionId = rightVersionSelect.value;
+        if (!leftVersionId || !rightVersionId) {
+          alert("Выберите обе версии для сравнения");
+          return;
+        }
+        if (leftVersionId === rightVersionId) {
+          alert("Выберите разные версии для сравнения");
+          return;
+        }
+        showLoading();
+        try {
           const response = await fetch(
-            `${API_HOST}/search_groups/?match=${encodeURIComponent(query)}`
+            `${API_HOST}/compare_files/?file_id_1=${leftVersionId}&file_id_2=${rightVersionId}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: "",
+            }
           );
-          if (!response.ok) throw new Error("Ошибка при поиске группы");
-          const data = await response.json();
+          if (!response.ok) throw new Error("Ошибка при сравнении версий");
+          const result = await response.json();
+          renderComparisonResults(result);
+        } catch (error) {
+          alert(error.message);
+        } finally {
+          hideLoading();
+        }
+      });
 
-          if (data.data && data.data.length > 0) {
-            // Populate dropdown with results
-            dropdownContent.innerHTML = data.data
-              .map(
-                (group) => `
-              <a class="dropdown-item" data-group='${JSON.stringify(group)}'>
-                ${group.fullTitle}
-              </a>
-            `
-              )
-              .join("");
+      function renderComparisonResults(result) {
+        comparisonResultsBody.innerHTML = "";
 
-            dropdown.classList.add("is-active");
+        const sortedGroups = Object.entries(result.groups).sort(
+          ([, a], [, b]) => b.total - a.total
+        );
 
-            // Add click handlers for dropdown items
-            dropdownContent
-              .querySelectorAll(".dropdown-item")
-              .forEach((item) => {
-                item.addEventListener("click", (e) => {
-                  const groupData = JSON.parse(e.target.dataset.group);
-                  groupSearchInput.value = groupData.fullTitle;
-                  linkInput.value = groupData.iCalLink;
-                  selectedGroupName = groupData.fullTitle;
-                  dropdown.classList.remove("is-active");
-                  searchGroupButton.classList.remove("is-empty", "is-loading");
-                  searchGroupButton.classList.add("is-success");
-                });
+        sortedGroups.forEach(([groupName, groupData], index) => {
+          const tr = document.createElement("tr");
+          tr.className = "group-row";
+          tr.dataset.detailsId = `details-${index}`;
+
+          tr.innerHTML = `
+              <td>
+                  ${
+                    groupData.total
+                      ? `<span class="icon toggle-icon"><i class="fas fa-chevron-right"></i></span>`
+                      : ""
+                  }
+                  ${groupName}
+              </td>
+              <td class="${groupData.total ? "has-changes" : "no-changes"}">
+                  ${
+                    groupData.total
+                      ? `${groupData.total} изменений`
+                      : "Нет изменений"
+                  }
+              </td>
+              <td>${renderSummaryBadges(groupData.summary)}</td>
+          `;
+
+          comparisonResultsBody.appendChild(tr);
+
+          if (groupData.total > 0) {
+            const detailsRow = document.createElement("tr");
+            detailsRow.className = "details-row";
+            detailsRow.id = `details-${index}`;
+            const detailsCell = document.createElement("td");
+            detailsCell.colSpan = 3;
+
+            const detailsContent = document.createElement("div");
+            detailsContent.className = "change-details";
+
+            if (groupData.details.added.length > 0) {
+              detailsContent.appendChild(
+                renderChangeSection(
+                  "Добавленные пары",
+                  groupData.details.added,
+                  "added"
+                )
+              );
+            }
+            if (groupData.details.removed.length > 0) {
+              detailsContent.appendChild(
+                renderChangeSection(
+                  "Удаленные пары",
+                  groupData.details.removed,
+                  "removed"
+                )
+              );
+            }
+            if (groupData.details.modified.length > 0) {
+              detailsContent.appendChild(
+                renderChangeSection(
+                  "Измененные пары",
+                  groupData.details.modified,
+                  "modified"
+                )
+              );
+            }
+
+            detailsCell.appendChild(detailsContent);
+            detailsRow.appendChild(detailsCell);
+            comparisonResultsBody.appendChild(detailsRow);
+
+            tr.addEventListener("click", function () {
+              const detailsRow = document.getElementById(
+                this.dataset.detailsId
+              );
+              const isVisible = detailsRow.classList.contains("is-visible");
+
+              document.querySelectorAll(".details-row").forEach((row) => {
+                row.classList.remove("is-visible");
+              });
+              document.querySelectorAll(".group-row").forEach((row) => {
+                row.classList.remove("is-expanded");
               });
 
-            searchGroupButton.classList.remove("is-empty", "is-loading");
-            searchGroupButton.classList.add("is-ready");
-            searchGroupButton.disabled = false;
-          } else {
-            dropdownContent.innerHTML =
-              '<div class="dropdown-item">Группы не найдены</div>';
-            dropdown.classList.add("is-active");
-            searchGroupButton.classList.remove(
-              "is-ready",
-              "is-success",
-              "is-loading"
-            );
-            searchGroupButton.classList.add("is-empty");
-            searchGroupButton.disabled = true;
-            linkInput.value = "";
+              if (!isVisible) {
+                detailsRow.classList.add("is-visible");
+                this.classList.add("is-expanded");
+              }
+            });
           }
-        } catch (error) {
-          searchGroupButton.classList.remove(
-            "is-ready",
-            "is-success",
-            "is-loading"
-          );
-          searchGroupButton.classList.add("is-empty");
-          searchGroupButton.disabled = true;
-          linkInput.value = "";
-          dropdown.classList.remove("is-active");
-        }
-      }, 300);
+        });
 
-      // Add click outside handler to close dropdown
-      document.addEventListener("click", (e) => {
-        const dropdown = document.getElementById("groupSearchDropdown");
-        if (
-          !dropdown.contains(e.target) &&
-          !groupSearchInput.contains(e.target)
-        ) {
-          dropdown.classList.remove("is-active");
-        }
-      });
+        comparisonResults.style.display = "block";
+      }
 
-      // Live search handler
-      groupSearchInput.addEventListener("input", (e) => {
-        const query = e.target.value.trim();
-        debouncedSearch(query);
-      });
+      function renderSummaryBadges(summary) {
+        const badges = [];
+        const labels = {
+          subject: "предметы",
+          teacher: "преподаватели",
+          room: "аудитории",
+          campus: "кампусы",
+        };
 
-      // Update button click handler
-      searchGroupButton.addEventListener("click", () => {
-        const groupData = JSON.parse(
-          searchGroupButton.dataset.groupData || "{}"
-        );
-        if (groupData.fullTitle) {
-          groupSearchInput.value = groupData.fullTitle;
-          linkInput.value = groupData.iCalLink;
-          selectedGroupName = groupData.fullTitle;
+        for (const [key, count] of Object.entries(summary)) {
+          if (count > 0) {
+            badges.push(`
+                  <span class="tag is-info is-light">
+                      ${labels[key]}: ${count}
+                  </span>
+              `);
+          }
         }
+
+        return badges.join(" ");
+      }
+
+      function getWeekTypeLabel(type) {
+        return type === "odd" ? "нечётная неделя" : "чётная неделя";
+      }
+
+      function renderChangeSection(title, items, type) {
+        const section = document.createElement("div");
+        section.className = "change-section";
+
+        const heading = document.createElement("h3");
+        heading.className = "subtitle is-5";
+        heading.textContent = title;
+        section.appendChild(heading);
+
+        items.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "change-card";
+
+          const header = document.createElement("div");
+          header.className = "change-header";
+          header.innerHTML = `
+          <div>
+            <strong>${item.day}</strong>
+            <span class="lesson-info">
+              ${item.lesson.replace(/\((odd|even)\)/, "")}
+              <span class="week-type">${getWeekTypeLabel(
+                item.lesson.includes("odd") ? "odd" : "even"
+              )}</span>
+            </span>
+          </div>
+        `;
+
+          if (type === "modified") {
+            card.appendChild(header);
+            card.innerHTML += `
+            <div class="changes-table">
+              <table class="table is-fullwidth">
+                <thead>
+                  <tr>
+                    <th>Поле</th>
+                    <th>Было</th>
+                    <th>Стало</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${item.changes
+                    .map(
+                      (change) => `
+                    <tr>
+                      <td>${translateField(change.field)}</td>
+                      <td class="old-value">${change.from}</td>
+                      <td class="new-value">${change.to}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+          } else {
+            card.appendChild(header);
+            card.innerHTML += `
+            <div class="schedule-item">
+              <div><strong>Предмет:</strong> ${item.details.subject}</div>
+              <div><strong>Преподаватель:</strong> ${item.details.teacher}</div>
+              <div><strong>Аудитория:</strong> ${item.details.room}</div>
+              <div><strong>Кампус:</strong> ${item.details.campus}</div>
+            </div>
+          `;
+          }
+
+          section.appendChild(card);
+        });
+
+        return section;
+      }
+
+      function translateField(field) {
+        const translations = {
+          subject: "Предмет",
+          teacher: "Преподаватель",
+          room: "Аудитория",
+          campus: "Кампус",
+        };
+        return translations[field] || field;
+      }
+
+      const loadingModal = document.getElementById("loading");
+      function showLoading() {
+        loadingModal.classList.add("is-active");
+      }
+      function hideLoading() {
+        loadingModal.classList.remove("is-active");
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+        updateThemeIcon();
+        fetchVersions();
       });
     </script>
   </body>

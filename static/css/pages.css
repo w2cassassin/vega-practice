@@ -1,0 +1,428 @@
+/* Страница расписания */
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.schedule-table th {
+  background-color: var(--table-header-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.free-slot {
+  background-color: var(--free-slot-bg);
+}
+
+.pair-cell {
+  min-width: 200px;
+}
+.pair-time {
+  color: var(--info-text);
+  font-size: 0.85rem;
+}
+
+/* Страница сравнения */
+.version-box {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.version-box .version-info {
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 1rem;
+  color: var(--text-color);
+}
+
+.version-delete {
+  font-size: 0.875rem;
+  background: none;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  border-radius: 10px;
+  border: 2px solid var(--border-color);
+}
+
+.version-delete:hover {
+  color: #ff3860;
+}
+
+/* Компоненты */
+.dropdown {
+  position: absolute;
+  width: 100%;
+  z-index: 100;
+  left: 0; /* привязываем к левому краю родителя */
+  top: 100%; /* располагаем под полем ввода */
+  margin-top: 5px; /* небольшой отступ сверху */
+}
+
+.dropdown-menu {
+  width: 100%;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.dropdown-content {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 2px 4px var(--box-shadow);
+}
+
+.dropdown-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .dropdown-item {
+  color: #e1e7ef;
+}
+
+.dropdown-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.selected-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 1rem 0;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Search container styles */
+.search-container {
+  margin-top: 1rem;
+}
+
+/* Adjusted spacing for comparison results */
+#comparisonResults {
+  margin-top: 1.5rem;
+}
+
+.box {
+  padding: 1.5rem;
+}
+
+/* Comparison Results Styles */
+.group-row {
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.group-row td {
+  padding: 1rem !important;
+  vertical-align: middle !important;
+}
+
+.group-row:hover {
+  background-color: var(--hover-bg);
+}
+
+.group-row .toggle-icon {
+  margin-right: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.group-row.is-expanded .toggle-icon {
+  transform: rotate(90deg);
+}
+
+.details-row {
+  display: none;
+}
+
+.details-row.is-visible {
+  display: table-row;
+}
+
+.no-changes {
+  color: var(--info-text);
+}
+
+.has-changes {
+  color: var (--accent-color);
+  font-weight: 600;
+}
+
+.details-toggle {
+  background-color: var(--nav-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+.details-toggle:hover {
+  background-color: var(--nav-hover) !important;
+}
+
+.change-details {
+  padding: 1rem;
+  background-color: var(--nav-bg);
+  border-radius: 4px;
+}
+
+.change-card {
+  margin-bottom: 1rem;
+  background-color: var(--box-bg);
+  border: 1px solid var(--border-color);
+  padding: 1rem;
+}
+
+.change-card:last-child {
+  margin-bottom: 0;
+}
+
+.change-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lesson-info {
+  color: var(--info-text);
+  font-size: 0.9rem;
+}
+
+.versions {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: var(--nav-bg);
+  border-radius: 4px;
+}
+
+.version {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.version:last-child {
+  margin-bottom: 0;
+}
+
+.version-label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+  color: var(--info-text);
+}
+
+.version-text {
+  color: var(--text-color);
+}
+
+.changes-list {
+  padding: 0.5rem;
+  background-color: var(--nav-bg);
+  border-radius: 4px;
+}
+
+.change-item {
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: var(--box-bg);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.change-item:last-child {
+  margin-bottom: 0;
+}
+
+.change-section {
+  margin-bottom: 2rem;
+}
+
+.change-section:last-child {
+  margin-bottom: 0;
+}
+
+.changes-table {
+  margin-top: 1rem;
+}
+
+.changes-table .table {
+  background-color: transparent;
+}
+
+.changes-table th {
+  color: var(--info-text);
+  font-size: 0.9rem;
+}
+
+.old-value {
+  color: var(--info-text);
+  /* убираем зачеркивание */
+}
+
+/* Добавляем стили для типа недели */
+.week-type {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  margin-left: 0.5rem;
+  background-color: var(--nav-bg);
+  color: var(--info-text);
+}
+
+.new-value {
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+.schedule-item {
+  background: var(--nav-bg);
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.schedule-item > div {
+  margin-bottom: 0.5rem;
+}
+
+.schedule-item > div:last-child {
+  margin-bottom: 0;
+}
+
+/* Tags styling */
+.tag.is-info.is-light {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Темная тема */
+[data-theme="dark"] .change-card {
+  background-color: var(--nav-bg);
+}
+
+[data-theme="dark"] .versions,
+[data-theme="dark"] .changes-list {
+  background-color: var(--bg-color);
+}
+
+[data-theme="dark"] .change-item {
+  background-color: var(--nav-bg);
+}
+
+[data-theme="dark"] .schedule-item {
+  background: var(--bg-color);
+}
+
+[data-theme="dark"] .changes-table .table th,
+[data-theme="dark"] .changes-table .table td {
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+/* Comparison Results Styles - Dark Theme Improvements */
+[data-theme="dark"] .table {
+  background-color: var(--nav-bg);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .table th {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .table td {
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .changes-table .table {
+  background-color: var(--nav-bg);
+}
+
+[data-theme="dark"] .changes-table th {
+  background-color: var(--bg-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .changes-table td {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .old-value {
+  color: #8b949e;
+}
+
+[data-theme="dark"] .new-value {
+  color: #58a6ff;
+}
+
+[data-theme="dark"] .schedule-item {
+  background-color: var(--bg-color);
+}
+
+[data-theme="dark"] .week-type {
+  background-color: var(--bg-color);
+  color: var(--info-text);
+}
+
+[data-theme="dark"] .tag.is-info.is-light {
+  background-color: #1d2d3e;
+  color: #58a6ff;
+}
+
+[data-theme="dark"] .change-details strong,
+[data-theme="dark"] .schedule-item strong,
+[data-theme="dark"] .change-header strong {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .changes-table strong {
+  color: var(--text-color);
+}
+
+/* Обновляем стили для дней недели */
+[data-theme="dark"] .change-header strong {
+  color: #e1e7ef;
+  font-weight: 600;
+}
+/* Компоненты страниц */
+.schedule-table {
+  /* ...existing code... */
+}
+
+/* Темная тема */
+[data-theme="dark"] {
+  /* ...existing code... */
+}

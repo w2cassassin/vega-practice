@@ -15,11 +15,17 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', path='/css/common.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', path='/css/pages.css') }}"
+    />
     <title>Управление расписанием</title>
     <style>
-      .free-slot {
-        background-color: #c8f7c5;
-      }
+      /* Основные компоненты */
       .schedule-table {
         width: 100%;
         border-collapse: collapse;
@@ -37,6 +43,7 @@
         top: 0;
         z-index: 10;
       }
+
       .dropdown {
         position: relative;
         display: inline-block;
@@ -58,6 +65,8 @@
       .dropdown-item:hover {
         background-color: #f1f1f1;
       }
+
+      /* Стили для выбранных элементов */
       .selected-items {
         display: flex;
         flex-wrap: wrap;
@@ -92,6 +101,8 @@
         color: #666;
         font-size: 0.85rem;
       }
+
+      /* Индикатор загрузки */
       .loading-overlay {
         position: fixed;
         top: 0;
@@ -114,20 +125,29 @@
   </head>
   <body>
     <nav class="navbar is-light" role="navigation" aria-label="main navigation">
-      <div class="navbar-brand">
-        <a class="navbar-item" href="{{ request.scope.root_path }}/">
-          <strong>Расписание</strong>
-        </a>
-      </div>
-
       <div class="navbar-menu">
         <div class="navbar-start">
-          <a class="navbar-item" href="{{ request.scope.root_path }}/">
+          <a
+            class="navbar-item {% if request.url.path == '/' %}is-active{% endif %}"
+            href="{{ request.scope.root_path }}/"
+          >
             Сравнение расписаний
           </a>
-          <a class="navbar-item" href="{{ request.scope.root_path }}/schedule">
+          <a
+            class="navbar-item {% if request.url.path == '/schedule' %}is-active{% endif %}"
+            href="{{ request.scope.root_path }}/schedule"
+          >
             Просмотр расписания
           </a>
+        </div>
+        <div class="navbar-end">
+          <div class="navbar-item theme-toggle-wrapper">
+            <button class="button theme-toggle" onclick="toggleTheme()">
+              <span class="icon">
+                <i class="fas fa-moon"></i>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </nav>
@@ -135,6 +155,12 @@
     <section class="section">
       <div class="container">
         <h1 class="title">Управление расписанием</h1>
+
+        <div class="notification is-warning">
+          <strong>Внимание!</strong> Этот раздел находится в разработке и может
+          работать не так, как ожидается. Некоторые функции могут быть
+          недоступны или работать некорректно.
+        </div>
 
         <div class="box">
           <!-- Date range selection -->
@@ -191,10 +217,36 @@
     </div>
 
     <script>
+      // Add this before other scripts
+      function toggleTheme() {
+        const theme =
+          document.documentElement.getAttribute("data-theme") === "dark"
+            ? "light"
+            : "dark";
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("theme", theme);
+        updateThemeIcon();
+      }
+
+      function updateThemeIcon() {
+        const icon = document.querySelector(".theme-toggle .icon i");
+        if (document.documentElement.getAttribute("data-theme") === "dark") {
+          icon.classList.remove("fa-moon");
+          icon.classList.add("fa-sun");
+        } else {
+          icon.classList.remove("fa-sun");
+          icon.classList.add("fa-moon");
+        }
+      }
+
+      const savedTheme = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      window.addEventListener("DOMContentLoaded", updateThemeIcon);
+
       const API_HOST = "{{ api_url }}";
-      const filters = []; // Array to hold selected filters
+      const filters = [];
       const scheduleData = {};
-      const semcode = 1; // Replace with actual semester code if needed
+      const semcode = 1;
       const PAIR_TIMES = {
         1: "09:00 - 10:30",
         2: "10:40 - 12:10",
@@ -305,12 +357,10 @@
         loadingOverlay.style.display = "flex";
 
         try {
-          // Clear ALL previous data
           for (const key in scheduleData) {
             delete scheduleData[key];
           }
 
-          // Load new data for each selected value
           for (const filter of filters) {
             for (const value of filter.values) {
               const response = await fetch(
@@ -369,17 +419,14 @@
         const container = document.getElementById("scheduleContainer");
         container.innerHTML = "";
 
-        // Create schedule container with scroll
         const scheduleContainer = document.createElement("div");
         scheduleContainer.className = "schedule-container";
 
-        // Get all unique dates from all schedules
         const allDates = new Set();
         Object.values(scheduleData).forEach((schedule) => {
           Object.keys(schedule).forEach((date) => allDates.add(date));
         });
 
-        // Convert to array and sort
         const dates = Array.from(allDates).sort();
         if (dates.length === 0) {
           container.innerHTML =
@@ -391,7 +438,6 @@
         const table = document.createElement("table");
         table.className = "schedule-table";
 
-        // Create header
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
         headerRow.innerHTML = `
@@ -401,12 +447,9 @@
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // Create body
         const tbody = document.createElement("tbody");
 
-        // For each date
         for (const date of dates) {
-          // Add date separator
           const dateRow = document.createElement("tr");
           dateRow.className = "day-separator";
           dateRow.innerHTML = `<td colspan="${
@@ -414,11 +457,9 @@
           }">${formatDate(date)}</td>`;
           tbody.appendChild(dateRow);
 
-          // For each pair
           for (const pair of ["1", "2", "3", "4", "5", "6", "7"]) {
             const row = document.createElement("tr");
 
-            // Add date and pair cells
             row.innerHTML = `
               <td>
                 <strong>${pair}</strong>
@@ -428,7 +469,6 @@
 
             let isFreeSlot = true;
 
-            // Add cells for each entity
             for (const entity of entities) {
               const pairData = scheduleData[entity]?.[date]?.[pair];
               const cell = document.createElement("td");
@@ -469,7 +509,6 @@
         container.appendChild(scheduleContainer);
       }
 
-      // Add event listener to close dropdown when clicking outside
       document.addEventListener("click", (e) => {
         if (!e.target.matches(".input")) {
           const dropdowns = document.querySelectorAll(".dropdown-content");
