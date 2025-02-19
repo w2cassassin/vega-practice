@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     BASE_HOST: str = "https://vega.mirea.ru"
 
     @property
-    def API_URL(self) -> str:
-        return f"{self.BASE_HOST}{self.ROOT_PATH}/api"
+    def BASE_URL(self) -> str:
+        return f"{self.BASE_HOST}{self.ROOT_PATH}"
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str

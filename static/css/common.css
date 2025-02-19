@@ -67,8 +67,8 @@ body {
 
 /* Навигация */
 .navbar {
-  background-color: var(--nav-bg);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--nav-bg) !important;
+  border-bottom: 1px solid var(--border-color) !important;
   min-height: 3.25rem;
   padding: 0.5rem 1rem;
   display: flex;

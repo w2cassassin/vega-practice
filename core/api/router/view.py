@@ -8,7 +8,7 @@ templates = Jinja2Templates(directory="templates")
 
 async def render_template(request: Request, template_name: str) -> dict:
     return templates.TemplateResponse(
-        template_name, {"request": request, "api_url": settings.API_URL}
+        template_name, {"request": request, "base_url": settings.BASE_URL}
     )
 
 

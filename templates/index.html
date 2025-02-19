@@ -15,14 +15,8 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
     />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', path='/css/common.css') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', path='/css/pages.css') }}"
-    />
+    <link rel="stylesheet" href="{{ base_url }}/static/css/common.css" />
+    <link rel="stylesheet" href="{{ base_url }}/static/css/pages.css" />
     <title>Сравнение расписаний</title>
   </head>
   <body>
@@ -181,7 +175,7 @@
 
     <!-- Скрипты -->
     <script>
-      const API_HOST = "{{ api_url }}";
+      const API_HOST = "{{ base_url }}/api";
 
       function toggleTheme() {
         const theme =
