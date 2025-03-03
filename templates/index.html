@@ -214,9 +214,41 @@
           versions = data.files;
           renderVersions();
           renderVersionOptions();
+
+          // Если есть версии, загружаем группы из последней версии
+          if (versions.length > 0) {
+            // Сортируем версии по дате (новые сверху)
+            const sortedVersions = versions
+              .slice()
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            // Берем самую свежую версию
+            const latestVersion = sortedVersions[0];
+            await loadGroupsFromVersion(latestVersion.id);
+          }
         } catch (error) {
           console.error(error);
           alert(error.message);
+        }
+      }
+
+      // Функция для загрузки групп из указанной версии
+      async function loadGroupsFromVersion(versionId) {
+        try {
+          const response = await fetch(`${API_HOST}/files/${versionId}/groups`);
+          if (!response.ok)
+            throw new Error("Ошибка при получении списка групп из версии");
+          const data = await response.json();
+
+          if (data && data.groups && Array.isArray(data.groups)) {
+            selectedGroups = data.groups.map((groupName) => ({
+              id: null,
+              fullTitle: groupName,
+            }));
+            renderSelectedGroups();
+          }
+        } catch (error) {
+          console.error("Ошибка при загрузке групп из версии:", error);
         }
       }
 
@@ -402,9 +434,11 @@
               <span class="version-date">${date}</span>
               <span class="version-count">${version.group_count} групп</span>
             </div>
-            <button class="version-delete" title="Удалить версию" onclick="deleteVersion('${version.id}')">
-              <i class="fas fa-times"></i>
-            </button>
+            <div class="version-actions">
+              <button class="version-delete" title="Удалить версию" onclick="deleteVersion('${version.id}')">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
           `;
             versionsList.appendChild(box);
           });
@@ -511,9 +545,15 @@
       function renderComparisonResults(result) {
         comparisonResultsBody.innerHTML = "";
 
-        const sortedGroups = Object.entries(result.groups).sort(
-          ([, a], [, b]) => b.total - a.total
-        );
+        // Сортируем группы сначала по количеству изменений, а затем по имени для стабильного порядка
+        const sortedGroups = Object.entries(result.groups).sort((a, b) => {
+          // Сначала по количеству изменений (по убыванию)
+          if (b[1].total !== a[1].total) {
+            return b[1].total - a[1].total;
+          }
+          // Затем по имени группы (по возрастанию)
+          return a[0].localeCompare(b[0]);
+        });
 
         sortedGroups.forEach(([groupName, groupData], index) => {
           const tr = document.createElement("tr");
@@ -642,6 +682,18 @@
         heading.textContent = title;
         section.appendChild(heading);
 
+        // Сортируем элементы по дню недели и номеру пары для последовательного вывода
+        items.sort((a, b) => {
+          // Сначала по дню недели
+          if (a.day !== b.day) {
+            return a.day.localeCompare(b.day);
+          }
+          // Затем по номеру пары
+          const pairA = parseInt(a.lesson.match(/Пара (\d+)/)?.[1] || 0);
+          const pairB = parseInt(b.lesson.match(/Пара (\d+)/)?.[1] || 0);
+          return pairA - pairB;
+        });
+
         items.forEach((item) => {
           const card = document.createElement("div");
           card.className = "change-card";
@@ -661,6 +713,9 @@
         `;
 
           if (type === "modified") {
+            const subject = item.before.subject || "—";
+            header.innerHTML += `<div class="subject-name">${subject}</div>`;
+
             card.appendChild(header);
             card.innerHTML += `
             <div class="changes-table">
@@ -689,6 +744,9 @@
             </div>
           `;
           } else {
+            const subject = item.details.subject || "—";
+            header.innerHTML += `<div class="subject-name">${subject}</div>`;
+
             card.appendChild(header);
             card.innerHTML += `
             <div class="schedule-item">

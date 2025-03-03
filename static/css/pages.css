@@ -50,18 +50,38 @@
   color: var(--text-color);
 }
 
+.version-actions {
+  display: flex;
+  align-items: center;
+}
+
 .version-delete {
-  font-size: 0.875rem;
   background: none;
-  padding: 0.25rem 0.5rem;
+  border: none;
   cursor: pointer;
-  transition: color 0.2s;
-  border-radius: 10px;
-  border: 2px solid var(--border-color);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-color);
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+  border-radius: 4px;
 }
 
 .version-delete:hover {
-  color: #ff3860;
+  background-color: #ff3860;
+  color: white;
+}
+
+[data-theme="dark"] .version-delete {
+  color: #888;
+}
+
+[data-theme="dark"] .version-delete:hover {
+  background-color: #ff3860;
+  color: white;
 }
 
 /* Компоненты */
@@ -69,9 +89,9 @@
   position: absolute;
   width: 100%;
   z-index: 100;
-  left: 0; /* привязываем к левому краю родителя */
-  top: 100%; /* располагаем под полем ввода */
-  margin-top: 5px; /* небольшой отступ сверху */
+  left: 0;
+  top: 100%;
+  margin-top: 5px;
 }
 
 .dropdown-menu {
@@ -109,7 +129,6 @@
   margin: 1rem 0;
 }
 
-/* Loading overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -123,12 +142,10 @@
   z-index: 1000;
 }
 
-/* Search container styles */
 .search-container {
   margin-top: 1rem;
 }
 
-/* Adjusted spacing for comparison results */
 #comparisonResults {
   margin-top: 1.5rem;
 }
@@ -209,14 +226,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
 }
 
-.lesson-info {
+.subject-name {
+  font-weight: 500;
+  font-style: italic;
   color: var(--info-text);
-  font-size: 0.9rem;
+  margin-left: 1rem;
+}
+
+.lesson-info {
+  display: inline-block;
+  color: var(--info-text);
+  margin-left: 0.5rem;
 }
 
 .versions {
@@ -308,7 +333,7 @@
 
 .schedule-item {
   background: var(--nav-bg);
-  padding: 1rem;
+  padding: 0.5rem;
   border-radius: 4px;
 }
 
@@ -350,7 +375,6 @@
   color: var(--text-color);
 }
 
-/* Comparison Results Styles - Dark Theme Improvements */
 [data-theme="dark"] .table {
   background-color: var(--nav-bg);
   color: var(--text-color);
@@ -412,17 +436,10 @@
   color: var(--text-color);
 }
 
-/* Обновляем стили для дней недели */
 [data-theme="dark"] .change-header strong {
-  color: #e1e7ef;
-  font-weight: 600;
-}
-/* Компоненты страниц */
-.schedule-table {
-  /* ...existing code... */
+  color: #fff;
 }
 
-/* Темная тема */
-[data-theme="dark"] {
-  /* ...existing code... */
+[data-theme="dark"] .subject-name {
+  color: #72c1df;
 }

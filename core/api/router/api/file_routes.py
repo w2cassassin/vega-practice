@@ -167,3 +167,41 @@ async def download_groups(
         raise HTTPException(
             status_code=500, detail=f"Failed to download schedules: {str(e)}"
         )
+
+
+@router.get("/files/{file_id}")
+async def get_file(file_id: int, file_manager: FileManager = Depends(get_file_manager)):
+    try:
+        file_data = await file_manager.get_file(file_id)
+        if not file_data:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
+        return {
+            "name": file_data.original_name,
+            "id": file_data.id,
+            "created_at": file_data.created_at,
+            "group_count": file_data.group_count,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/files/{file_id}/groups")
+async def get_groups_from_file(
+    file_id: int, file_manager: FileManager = Depends(get_file_manager)
+):
+    try:
+        file_data = await file_manager.get_file(file_id)
+        if not file_data:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
+        if not file_data.standardized_content:
+            raise HTTPException(
+                status_code=400, detail="Файл не содержит данных о группах"
+            )
+
+        groups = list(file_data.standardized_content.keys())
+
+        return {"groups": groups}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
