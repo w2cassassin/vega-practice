@@ -6,14 +6,15 @@ import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from core.services.file_manager import FileManager
+from core.services.schedule_compare import ScheduleCompareService
+from core.services.schedule_service import ScheduleService
+
 from core.api.router.api.depends import (
     get_compare_service,
     get_file_manager,
     get_schedule_service,
 )
-from core.services.file_manager import FileManager
-from core.services.schedule_compare import ScheduleCompareService
-from core.services.schedule_service import ScheduleService
 
 router = APIRouter(tags=["files"])
 
@@ -150,17 +151,41 @@ async def search_groups(match: str):
 
 @router.post("/download_groups/")
 async def download_groups(
-    request: GroupDownload, file_manager: FileManager = Depends(get_file_manager)
+    request: GroupDownload,
+    file_manager: FileManager = Depends(get_file_manager),
+    schedule_service: ScheduleService = Depends(get_schedule_service),
 ):
     """Download schedules for multiple groups and combine them"""
     try:
         new_file = await file_manager.download_group_schedules(request.groups)
-        return {
-            "id": new_file.id,
-            "name": new_file.original_name,
-            "created_at": new_file.created_at,
-            "group_count": new_file.group_count,
-        }
+
+        semcode = await schedule_service.get_current_semcode()
+
+        try:
+            await schedule_service.add_or_update_7day_schedule_from_dict(
+                semcode=semcode,
+                version=1,
+                data=new_file.standardized_content,
+            )
+
+            return {
+                "id": new_file.id,
+                "name": new_file.original_name,
+                "created_at": new_file.created_at,
+                "group_count": new_file.group_count,
+                "imported_to_db": True,
+                "semcode": semcode,
+            }
+        except Exception as import_error:
+            return {
+                "id": new_file.id,
+                "name": new_file.original_name,
+                "created_at": new_file.created_at,
+                "group_count": new_file.group_count,
+                "imported_to_db": False,
+                "import_error": str(import_error),
+            }
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

@@ -17,105 +17,7 @@
     />
     <link rel="stylesheet" href="{{ base_url }}/static/css/common.css" />
     <link rel="stylesheet" href="{{ base_url }}/static/css/pages.css" />
-    <title>Управление расписанием</title>
-    <style>
-      /* Основные компоненты */
-      .schedule-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .schedule-table th,
-      .schedule-table td {
-        border: 1px solid #ddd;
-        padding: 12px;
-        text-align: center;
-        font-size: 0.95rem;
-      }
-      .schedule-table th {
-        background-color: #f5f5f5;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-      }
-
-      .dropdown {
-        position: relative;
-        display: inline-block;
-      }
-      .dropdown-content {
-        display: none;
-        position: absolute;
-        background-color: #fff;
-        min-width: 160px;
-        border: 1px solid #ccc;
-        z-index: 1;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      .dropdown-item {
-        padding: 8px;
-        cursor: pointer;
-      }
-      .dropdown-item:hover {
-        background-color: #f1f1f1;
-      }
-
-      /* Стили для выбранных элементов */
-      .selected-items {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        margin-top: 5px;
-      }
-      .selected-item {
-        background-color: #e7e7e7;
-        padding: 5px 10px;
-        border-radius: 4px;
-      }
-      .selected-item button {
-        margin-left: 5px;
-        background: none;
-        border: none;
-        cursor: pointer;
-      }
-      .filter {
-        margin-bottom: 1rem;
-      }
-      .day-separator td {
-        background-color: #f0f0f0;
-        font-weight: bold;
-        padding: 12px;
-        text-align: left;
-        border-bottom: 2px solid #ccc;
-      }
-      .pair-cell {
-        min-width: 200px;
-      }
-      .pair-time {
-        color: #666;
-        font-size: 0.85rem;
-      }
-
-      /* Индикатор загрузки */
-      .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.8);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-      }
-      .schedule-container {
-        max-height: 80vh;
-        overflow-y: auto;
-        margin-top: 1rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-    </style>
+    <title>Просмотр расписания</title>
   </head>
   <body>
     <nav class="navbar is-light" role="navigation" aria-label="main navigation">
@@ -148,15 +50,28 @@
 
     <section class="section">
       <div class="container">
-        <h1 class="title">Управление расписанием</h1>
-
-        <div class="notification is-warning">
-          <strong>Внимание!</strong> Этот раздел находится в разработке и может
-          работать не так, как ожидается. Некоторые функции могут быть
-          недоступны или работать некорректно.
-        </div>
+        <h1 class="title">Просмотр расписания</h1>
 
         <div class="box">
+          <!-- Semester selection -->
+          <div class="field">
+            <label class="label">Семестр</label>
+            <div class="control">
+              <div class="select">
+                <select id="semcodeSelect">
+                  <!-- Будет заполнено динамически -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Current week info -->
+          <div class="field">
+            <div class="notification is-info is-light" id="currentWeekInfo">
+              <!-- Будет заполнено динамически -->
+            </div>
+          </div>
+
           <!-- Date range selection -->
           <div class="field is-horizontal">
             <div class="field-body">
@@ -175,7 +90,20 @@
             </div>
           </div>
 
-          <!-- Dynamic filters with autocomplete -->
+          <div class="field">
+            <div class="buttons">
+              <button class="button is-small" onclick="setCurrentWeek()">
+                Текущая неделя
+              </button>
+              <button class="button is-small" onclick="setNextWeek()">
+                Следующая неделя
+              </button>
+              <button class="button is-small" onclick="setFullSemester()">
+                Весь семестр
+              </button>
+            </div>
+          </div>
+
           <div class="field">
             <label class="label">Добавить фильтры</label>
             <div class="buttons">
@@ -192,26 +120,88 @@
           </div>
           <div id="filtersContainer"></div>
 
-          <button class="button is-success" onclick="loadSchedules()">
-            Показать расписание
-          </button>
+          <div
+            class="pairs-range-filter"
+            id="pairsRangeFilter"
+            style="display: none"
+          >
+            <label class="label">Диапазон пар для фильтрации</label>
+            <div class="range-slider-container">
+              <div class="double-slider-container">
+                <input
+                  type="range"
+                  min="1"
+                  max="7"
+                  value="1"
+                  class="range-slider"
+                  id="minPairSlider"
+                />
+                <input
+                  type="range"
+                  min="1"
+                  max="7"
+                  value="7"
+                  class="range-slider"
+                  id="maxPairSlider"
+                />
+              </div>
+              <div class="range-values">
+                <span id="minPairValue">1 пара (9:00)</span>
+                <span id="maxPairValue">7 пара (21:10)</span>
+              </div>
+              <div class="range-labels">
+                <div>1</div>
+                <div>2</div>
+                <div>3</div>
+                <div>4</div>
+                <div>5</div>
+                <div>6</div>
+                <div>7</div>
+              </div>
+              <button
+                class="button is-small is-info mt-2"
+                id="applyRangeFilter"
+              >
+                Применить фильтр
+              </button>
+            </div>
+          </div>
+
+          <div class="field is-grouped">
+            <div class="control">
+              <button class="button is-success" onclick="loadSchedules()">
+                Показать расписание
+              </button>
+            </div>
+            <div class="control">
+              <button class="button is-info" onclick="loadFreeSlots()">
+                Найти свободные пары
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Schedule display area -->
+        <div id="availableSchedules" class="box is-hidden">
+          <h3 class="subtitle">Доступные расписания</h3>
+          <p>Выберите готовое расписание из списка:</p>
+          <div id="schedulesList" class="schedules-list"></div>
+        </div>
+
         <div id="scheduleContainer" class="mt-4"></div>
       </div>
     </section>
 
-    <!-- Add loading overlay -->
-    <div id="loadingOverlay" class="loading-overlay">
-      <div class="has-text-centered">
-        <div class="is-loading is-size-1">⌛</div>
-        <p class="mt-2">Загрузка расписания...</p>
+    <div id="loading" class="modal">
+      <div class="modal-background"></div>
+      <div class="modal-content has-text-centered">
+        <span class="icon is-large">
+          <i class="fas fa-spinner fa-pulse fa-3x"></i>
+        </span>
+        <p style="color: white">Пожалуйста, подождите...</p>
       </div>
     </div>
 
     <script>
-      // Add this before other scripts
       function toggleTheme() {
         const theme =
           document.documentElement.getAttribute("data-theme") === "dark"
@@ -240,7 +230,24 @@
       const API_HOST = "{{ base_url }}/api";
       const filters = [];
       const scheduleData = {};
-      const semcode = 1;
+      let currentSemcode = null;
+      let semesterDates = {};
+      let scheduleInfo = {};
+      let currentSortColumn = "date";
+      let sortDirection = "asc";
+      let minPair = 1;
+      let maxPair = 7;
+      let freeSlotsData = null;
+      const loadingModal = document.getElementById("loading");
+
+      function showLoading() {
+        loadingModal.classList.add("is-active");
+      }
+
+      function hideLoading() {
+        loadingModal.classList.remove("is-active");
+      }
+
       const PAIR_TIMES = {
         1: "09:00 - 10:30",
         2: "10:40 - 12:10",
@@ -250,6 +257,214 @@
         6: "18:00 - 19:30",
         7: "19:40 - 21:10",
       };
+
+      const PAIR_START_TIMES = {
+        1: "09:00",
+        2: "10:40",
+        3: "12:40",
+        4: "14:20",
+        5: "16:20",
+        6: "18:00",
+        7: "19:40",
+      };
+
+      const LESSON_TYPE_CLASSES = {
+        ЛК: "lesson-type-lk",
+        ПР: "lesson-type-pr",
+        ЛАБ: "lesson-type-lab",
+        ЭКЗ: "lesson-type-exam",
+        ЗАЧ: "lesson-type-exam",
+        КР: "lesson-type-exam",
+      };
+
+      const minPairSlider = document.getElementById("minPairSlider");
+      const maxPairSlider = document.getElementById("maxPairSlider");
+      const minPairValue = document.getElementById("minPairValue");
+      const maxPairValue = document.getElementById("maxPairValue");
+      const applyRangeFilter = document.getElementById("applyRangeFilter");
+
+      minPairSlider.style.position = "absolute";
+      maxPairSlider.style.position = "absolute";
+      minPairSlider.style.width = "100%";
+      maxPairSlider.style.width = "100%";
+      maxPairSlider.style.zIndex = "1";
+
+      minPairSlider.addEventListener("input", function () {
+        minPair = parseInt(this.value);
+        if (minPair > maxPair) {
+          maxPairSlider.value = minPair;
+          maxPair = minPair;
+          updateMaxPairValue();
+        }
+        updateMinPairValue();
+      });
+
+      maxPairSlider.addEventListener("input", function () {
+        maxPair = parseInt(this.value);
+        if (maxPair < minPair) {
+          minPairSlider.value = maxPair;
+          minPair = maxPair;
+          updateMinPairValue();
+        }
+        updateMaxPairValue();
+      });
+
+      applyRangeFilter.addEventListener("click", function () {
+        if (freeSlotsData) {
+          renderFreeSlotsTable(freeSlotsData);
+        }
+      });
+
+      function updateMinPairValue() {
+        minPairValue.textContent = `${minPair} пара (${PAIR_START_TIMES[minPair]})`;
+      }
+
+      function updateMaxPairValue() {
+        maxPairValue.textContent = `${maxPair} пара (${PAIR_START_TIMES[maxPair]})`;
+      }
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        await loadScheduleInfo();
+        await loadCurrentWeekInfo();
+        loadAvailableSchedules();
+      });
+
+      async function loadScheduleInfo() {
+        showLoading();
+
+        try {
+          const response = await fetch(`${API_HOST}/schedule/info`);
+          scheduleInfo = await response.json();
+
+          const semcodeSelect = document.getElementById("semcodeSelect");
+          semcodeSelect.innerHTML = "";
+
+          if (scheduleInfo.semcodes && scheduleInfo.semcodes.length > 0) {
+            for (const semcode of scheduleInfo.semcodes) {
+              const option = document.createElement("option");
+              option.value = semcode;
+
+              const year = Math.floor(semcode / 10);
+              const semester = semcode % 10;
+
+              let semesterText = semester === 1 ? "Осенний" : "Весенний";
+
+              let startDate = "";
+              if (
+                scheduleInfo.semester_dates &&
+                scheduleInfo.semester_dates[semcode] &&
+                scheduleInfo.semester_dates[semcode].start_date
+              ) {
+                const dateObj = new Date(
+                  scheduleInfo.semester_dates[semcode].start_date
+                );
+                const day = dateObj.getDate();
+                const month = dateObj.getMonth() + 1;
+                startDate = ` (с ${day}.${month < 10 ? "0" + month : month})`;
+              }
+
+              option.textContent = `${semesterText} ${year}${startDate} (${semcode})`;
+
+              if (semcode === scheduleInfo.current_semcode) {
+                option.selected = true;
+              }
+
+              semcodeSelect.appendChild(option);
+            }
+          } else {
+            const option = document.createElement("option");
+            option.value = scheduleInfo.current_semcode;
+
+            const year = Math.floor(scheduleInfo.current_semcode / 10);
+            const semester = scheduleInfo.current_semcode % 10;
+
+            let semesterText = semester === 1 ? "Осенний" : "Весенний";
+            option.textContent = `${semesterText} ${year} (${scheduleInfo.current_semcode})`;
+
+            semcodeSelect.appendChild(option);
+          }
+
+          currentSemcode = scheduleInfo.current_semcode;
+
+          await loadSemesterDates(currentSemcode);
+
+          setCurrentWeek();
+        } catch (error) {
+          console.error("Error loading schedule info:", error);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      async function loadSemesterDates(semcode) {
+        try {
+          const response = await fetch(
+            `${API_HOST}/schedule/semester-dates?semcode=${semcode}`
+          );
+          semesterDates = await response.json();
+        } catch (error) {
+          console.error("Error loading semester dates:", error);
+        }
+      }
+
+      function setCurrentWeek() {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+
+        document.getElementById("dateFrom").value = formatDateForInput(monday);
+        document.getElementById("dateTo").value = formatDateForInput(sunday);
+      }
+
+      function setNextWeek() {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+
+        const nextMonday = new Date(today);
+        nextMonday.setDate(today.getDate() + (7 - dayOfWeek + 1));
+
+        const nextSunday = new Date(nextMonday);
+        nextSunday.setDate(nextMonday.getDate() + 6);
+
+        document.getElementById("dateFrom").value =
+          formatDateForInput(nextMonday);
+        document.getElementById("dateTo").value =
+          formatDateForInput(nextSunday);
+      }
+
+      function setFullSemester() {
+        if (
+          semesterDates &&
+          semesterDates.start_date &&
+          semesterDates.end_date
+        ) {
+          document.getElementById("dateFrom").value =
+            semesterDates.start_date.substring(0, 10);
+          document.getElementById("dateTo").value =
+            semesterDates.end_date.substring(0, 10);
+        }
+      }
+
+      function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      document
+        .getElementById("semcodeSelect")
+        .addEventListener("change", async (e) => {
+          currentSemcode = parseInt(e.target.value);
+          await loadSemesterDates(currentSemcode);
+          await loadCurrentWeekInfo();
+          setFullSemester();
+        });
 
       function addFilter(type) {
         const filterId = Date.now();
@@ -324,9 +539,7 @@
           selectedItemsDiv.appendChild(itemDiv);
         }
 
-        // Hide dropdown
         document.getElementById(`dropdown-${filterId}`).style.display = "none";
-        // Clear input
         const inputField = document.querySelector(
           `[data-filter-id="${filterId}"] .input`
         );
@@ -342,13 +555,14 @@
           return;
         }
 
-        if (filters.length === 0) {
+        if (filters.length === 0 || !filters.some((f) => f.values.length > 0)) {
           alert("Пожалуйста, добавьте хотя бы один фильтр.");
           return;
         }
 
-        const loadingOverlay = document.getElementById("loadingOverlay");
-        loadingOverlay.style.display = "flex";
+        document.getElementById("pairsRangeFilter").style.display = "none";
+
+        showLoading();
 
         try {
           for (const key in scheduleData) {
@@ -358,7 +572,7 @@
           for (const filter of filters) {
             for (const value of filter.values) {
               const response = await fetch(
-                `${API_HOST}/schedule/get?semcode=${semcode}&date_from=${dateFrom}&date_to=${dateTo}&filter_type=${
+                `${API_HOST}/schedule/get?semcode=${currentSemcode}&date_from=${dateFrom}&date_to=${dateTo}&filter_type=${
                   filter.type
                 }&filter_value=${encodeURIComponent(value)}`
               );
@@ -374,7 +588,60 @@
           console.error("Error loading schedules:", error);
           alert("Произошла ошибка при загрузке расписания");
         } finally {
-          loadingOverlay.style.display = "none";
+          hideLoading();
+        }
+      }
+
+      async function loadFreeSlots() {
+        const dateFrom = document.getElementById("dateFrom").value;
+        const dateTo = document.getElementById("dateTo").value;
+
+        if (!dateFrom || !dateTo) {
+          alert("Пожалуйста, выберите диапазон дат.");
+          return;
+        }
+
+        if (filters.length === 0 || !filters.some((f) => f.values.length > 0)) {
+          alert("Пожалуйста, добавьте хотя бы один фильтр.");
+          return;
+        }
+
+        showLoading();
+
+        try {
+          const filter_types = [];
+          const filter_values = [];
+
+          for (const filter of filters) {
+            for (const value of filter.values) {
+              filter_types.push(filter.type);
+              filter_values.push(value);
+            }
+          }
+
+          let url = `${API_HOST}/schedule/free-slots?semcode=${currentSemcode}&date_from=${dateFrom}&date_to=${dateTo}`;
+
+          filter_types.forEach((type) => {
+            url += `&filter_types=${type}`;
+          });
+
+          filter_values.forEach((value) => {
+            url += `&filter_values=${encodeURIComponent(value)}`;
+          });
+
+          const response = await fetch(url);
+          const data = await response.json();
+
+          freeSlotsData = data;
+
+          document.getElementById("pairsRangeFilter").style.display = "block";
+
+          renderFreeSlotsTable(data);
+        } catch (error) {
+          console.error("Error loading free slots:", error);
+          alert("Произошла ошибка при загрузке свободных временных интервалов");
+        } finally {
+          hideLoading();
         }
       }
 
@@ -409,6 +676,15 @@
         } ${date.getFullYear()}`;
       }
 
+      function formatShortDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString("ru-RU", {
+          day: "numeric",
+          month: "numeric",
+          weekday: "short",
+        });
+      }
+
       function renderSchedules() {
         const container = document.getElementById("scheduleContainer");
         container.innerHTML = "";
@@ -435,7 +711,7 @@
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
         headerRow.innerHTML = `
-          <th style="width: 100px">Пара</th>
+          <th style="width: 100px; color: var(--text-color)">Пара</th>
           ${entities.map((e) => `<th class="pair-cell">${e}</th>`).join("")}
         `;
         thead.appendChild(headerRow);
@@ -461,18 +737,30 @@
               </td>
             `;
 
-            let isFreeSlot = true;
+            let busyCellsCount = 0;
+            let totalCellsCount = 0;
 
             for (const entity of entities) {
+              totalCellsCount++;
               const pairData = scheduleData[entity]?.[date]?.[pair];
               const cell = document.createElement("td");
 
               if (pairData) {
-                isFreeSlot = false;
+                busyCellsCount++;
+                let lessonTypeClass = "lesson-type-pr";
+
+                if (
+                  pairData.lesson_type &&
+                  LESSON_TYPE_CLASSES[pairData.lesson_type]
+                ) {
+                  lessonTypeClass = LESSON_TYPE_CLASSES[pairData.lesson_type];
+                }
+
                 cell.innerHTML = `
-                  <strong>${pairData.lesson_type} ${
-                  pairData.subject
-                }</strong><br>
+                  <span class="lesson-type ${lessonTypeClass}">${
+                  pairData.lesson_type || "ПР"
+                }</span>
+                  <strong>${pairData.subject}</strong><br>
                   ${
                     pairData.teacher
                       ? `<span class="has-text-grey">${pairData.teacher}</span><br>`
@@ -486,12 +774,13 @@
                 `;
               } else {
                 cell.textContent = "Свободно";
+                cell.classList.add("free-cell");
               }
               row.appendChild(cell);
             }
 
-            if (isFreeSlot && entities.length > 0) {
-              row.classList.add("free-slot");
+            if (busyCellsCount === 0 && totalCellsCount > 0) {
+              row.classList.add("all-free-slot");
             }
 
             tbody.appendChild(row);
@@ -503,11 +792,231 @@
         container.appendChild(scheduleContainer);
       }
 
+      function renderFreeSlotsTable(freeSlotsData) {
+        const container = document.getElementById("scheduleContainer");
+        container.innerHTML = "";
+
+        const allDates = Object.keys(freeSlotsData).sort();
+        if (allDates.length === 0) {
+          container.innerHTML =
+            '<div class="notification is-warning">Нет данных для выбранного периода</div>';
+          return;
+        }
+
+        const entities = new Set();
+        Object.values(freeSlotsData).forEach((dateData) => {
+          Object.keys(dateData).forEach((entity) => entities.add(entity));
+        });
+
+        const commonFreeSlots = [];
+
+        for (const date of allDates) {
+          // Пропускаем воскресенья (0 - воскресенье в getDay())
+          if (new Date(date).getDay() === 0) continue;
+
+          const pairCounts = {};
+          const entitiesCount = entities.size;
+
+          for (const entity of entities) {
+            if (freeSlotsData[date] && freeSlotsData[date][entity]) {
+              const availablePairs = freeSlotsData[date][entity].filter(
+                (pair) => pair >= minPair && pair <= maxPair
+              );
+
+              for (const pair of availablePairs) {
+                pairCounts[pair] = (pairCounts[pair] || 0) + 1;
+              }
+            }
+          }
+
+          for (const [pair, count] of Object.entries(pairCounts)) {
+            if (count === entitiesCount) {
+              commonFreeSlots.push({
+                date: date,
+                formattedDate: formatDate(date),
+                shortDate: formatShortDate(date),
+                pair: parseInt(pair),
+                pairTime: PAIR_TIMES[pair],
+                entityCount: entitiesCount,
+                entities: Array.from(entities).join(", "),
+              });
+            }
+          }
+        }
+
+        if (commonFreeSlots.length === 0) {
+          container.innerHTML =
+            '<div class="notification is-warning">Нет общих свободных временных интервалов в выбранном диапазоне пар</div>';
+          return;
+        }
+
+        sortFreeSlots(commonFreeSlots);
+
+        const tableContainer = document.createElement("div");
+        tableContainer.className = "box";
+
+        const tableTitle = document.createElement("h3");
+        tableTitle.className = "subtitle";
+        tableTitle.innerHTML = `Свободные временные интервалы <span class="tag is-info is-light">Найдено: ${commonFreeSlots.length}</span>`;
+        tableContainer.appendChild(tableTitle);
+
+        const filterInfo = document.createElement("p");
+        filterInfo.innerHTML = `Показаны интервалы для пар с ${minPair} по ${maxPair} <strong>(свободные у всех выбранных элементов, кроме воскресений)</strong>`;
+        filterInfo.className = "mb-3";
+        filterInfo.style.color = "var(--text-color)";
+        tableContainer.appendChild(filterInfo);
+
+        const table = document.createElement("table");
+        table.className = "free-slots-table table is-fullwidth is-striped";
+
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+
+        const headers = [
+          { id: "date", text: "Дата" },
+          { id: "pair", text: "Пара" },
+          { id: "entities", text: "Свободно для" },
+        ];
+
+        headers.forEach((header) => {
+          const th = document.createElement("th");
+          th.textContent = header.text;
+          th.dataset.column = header.id;
+          th.addEventListener("click", () => {
+            sortTableByColumn(header.id, commonFreeSlots, table);
+          });
+
+          if (header.id === currentSortColumn) {
+            th.classList.add(
+              sortDirection === "asc" ? "sorted-asc" : "sorted-desc"
+            );
+          }
+
+          headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+
+        commonFreeSlots.forEach((slot) => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+            <td>${slot.shortDate}</td>
+            <td>${slot.pair} (${slot.pairTime})</td>
+            <td>${slot.entities}</td>
+          `;
+
+          tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        tableContainer.appendChild(table);
+        container.appendChild(tableContainer);
+      }
+
+      function sortTableByColumn(column, data, table) {
+        if (currentSortColumn === column) {
+          sortDirection = sortDirection === "asc" ? "desc" : "asc";
+        } else {
+          currentSortColumn = column;
+          sortDirection = "asc";
+        }
+
+        sortFreeSlots(data);
+
+        const headers = table.querySelectorAll("th");
+        headers.forEach((th) => {
+          th.classList.remove("sorted-asc", "sorted-desc");
+          if (th.dataset.column === currentSortColumn) {
+            th.classList.add(
+              sortDirection === "asc" ? "sorted-asc" : "sorted-desc"
+            );
+          }
+        });
+
+        const tbody = table.querySelector("tbody");
+        tbody.innerHTML = "";
+
+        data.forEach((slot) => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+            <td>${slot.shortDate}</td>
+            <td>${slot.pair} (${slot.pairTime})</td>
+            <td>${slot.entities}</td>
+          `;
+
+          tbody.appendChild(row);
+        });
+      }
+
+      function sortFreeSlots(slots) {
+        slots.sort((a, b) => {
+          let result = 0;
+
+          if (currentSortColumn === "date") {
+            result = new Date(a.date) - new Date(b.date);
+          } else if (currentSortColumn === "entities") {
+            result = a.entities.localeCompare(b.entities);
+          } else if (currentSortColumn === "pair") {
+            result = a.pair - b.pair;
+          }
+
+          return sortDirection === "asc" ? result : -result;
+        });
+      }
+
+      function loadAvailableSchedules() {
+        // Логика загрузки сохраненных расписаний
+      }
+
+      async function loadCurrentWeekInfo() {
+        try {
+          const response = await fetch(
+            `${API_HOST}/schedule/current-week?semcode=${currentSemcode}`
+          );
+          const weekInfo = await response.json();
+
+          if (weekInfo && weekInfo.week_number) {
+            const weekType = weekInfo.is_odd_week ? "нечетная" : "четная";
+            const weekStart = new Date(weekInfo.week_start).toLocaleDateString(
+              "ru-RU"
+            );
+            const weekEnd = new Date(weekInfo.week_end).toLocaleDateString(
+              "ru-RU"
+            );
+
+            const infoElem = document.getElementById("currentWeekInfo");
+            infoElem.innerHTML = `
+              <p><strong>Текущая неделя семестра:</strong> ${weekInfo.week_number} (${weekType})</p>
+              <p><strong>Период:</strong> ${weekStart} - ${weekEnd}</p>
+            `;
+          }
+        } catch (error) {
+          console.error("Error loading current week info:", error);
+        }
+      }
+
       document.addEventListener("click", (e) => {
         if (!e.target.matches(".input")) {
           const dropdowns = document.querySelectorAll(".dropdown-content");
           dropdowns.forEach((dropdown) => (dropdown.style.display = "none"));
         }
+      });
+
+      document
+        .getElementById("dateFrom")
+        .addEventListener("change", function () {
+          freeSlotsData = null;
+          document.getElementById("pairsRangeFilter").style.display = "none";
+        });
+
+      document.getElementById("dateTo").addEventListener("change", function () {
+        freeSlotsData = null;
+        document.getElementById("pairsRangeFilter").style.display = "none";
       });
     </script>
   </body>

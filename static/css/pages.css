@@ -27,7 +27,7 @@
   min-width: 200px;
 }
 .pair-time {
-  color: var(--info-text);
+  color: var(--info-text) !important;
   font-size: 0.85rem;
 }
 
@@ -129,6 +129,7 @@
   margin: 1rem 0;
 }
 
+/* Индикатор загрузки */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -140,6 +141,14 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+[data-theme="dark"] .loading-overlay {
+  background: rgba(22, 25, 32, 0.8);
+}
+
+[data-theme="dark"] .loading-overlay p {
+  color: var(--text-color);
 }
 
 .search-container {
@@ -233,9 +242,9 @@
 
 .subject-name {
   font-weight: 500;
-  font-style: italic;
   color: var(--info-text);
   margin-left: 1rem;
+  text-align: center;
 }
 
 .lesson-info {
@@ -313,10 +322,9 @@
 
 .old-value {
   color: var(--info-text);
-  /* убираем зачеркивание */
+  width: 40%;
 }
 
-/* Добавляем стили для типа недели */
 .week-type {
   font-size: 0.85rem;
   padding: 0.2rem 0.5rem;
@@ -329,6 +337,7 @@
 .new-value {
   color: var(--accent-color);
   font-weight: 500;
+  width: 40%;
 }
 
 .schedule-item {
@@ -442,4 +451,447 @@
 
 [data-theme="dark"] .subject-name {
   color: #72c1df;
+}
+
+/* Стили для свободных слотов */
+.all-free-slot {
+  background-color: var(--all-free-slot-bg);
+}
+
+.free-cell {
+  background-color: var(--free-slot-bg);
+}
+
+/* Стили для типов занятий */
+.lesson-type {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 5px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.lesson-type-lk {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+}
+
+.lesson-type-pr {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.lesson-type-lab {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.lesson-type-exam {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Улучшения для поиска свободных слотов */
+.free-slots-summary {
+  margin-bottom: 1rem;
+}
+
+.free-slot-card {
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.free-slot-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.free-slot-card-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: bold;
+}
+
+.free-slot-card-body {
+  padding: 1rem;
+}
+
+.free-slot-tag {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.recommendation-badge {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+/* Новые стили для фильтрации диапазона пар */
+.pairs-range-filter {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+}
+
+.range-slider-container {
+  padding: 0 10px;
+  margin-top: 1rem;
+}
+
+.double-slider-container {
+  position: relative;
+  height: 20px;
+  margin-bottom: 20px;
+}
+
+.range-values {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  color: var(--info-text);
+  font-size: 0.8rem;
+}
+
+.range-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  background: var(--border-color);
+  outline: none;
+  border-radius: 4px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-color);
+  cursor: pointer;
+  border-radius: 50%;
+  z-index: 2;
+  position: relative;
+}
+
+.range-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--accent-color);
+  cursor: pointer;
+  border-radius: 50%;
+  z-index: 2;
+  position: relative;
+}
+
+#minPairSlider::-webkit-slider-thumb {
+  z-index: 3;
+  border: 1px solid white;
+}
+
+#minPairSlider::-moz-range-thumb {
+  z-index: 3;
+  border: 1px solid white;
+}
+
+.free-slots-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.free-slots-table th {
+  background-color: var(--table-header-bg);
+  color: var(--text-color);
+  text-align: left;
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.free-slots-table th:hover {
+  background-color: var(--hover-bg);
+}
+
+.free-slots-table th.sorted-asc::after {
+  content: "▲";
+  margin-left: 5px;
+  font-size: 0.8rem;
+}
+
+.free-slots-table th.sorted-desc::after {
+  content: "▼";
+  margin-left: 5px;
+  font-size: 0.8rem;
+}
+
+.free-slots-table td {
+  border: 1px solid var(--border-color);
+  padding: 0.75rem;
+}
+
+.free-slots-table tbody tr:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Темная тема для компонентов страницы расписания */
+[data-theme="dark"] .lesson-type-lk {
+  background-color: #0d3a7a;
+  color: #a9d0f5;
+}
+
+[data-theme="dark"] .lesson-type-pr {
+  background-color: #1b4d21;
+  color: #a5d6a7;
+}
+
+[data-theme="dark"] .lesson-type-lab {
+  background-color: #7f4f24;
+  color: #ffe0b2;
+}
+
+[data-theme="dark"] .lesson-type-exam {
+  background-color: #7a1c1c;
+  color: #ffcdd2;
+}
+
+[data-theme="dark"] strong {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .has-text-grey {
+  color: #a0aec0 !important;
+}
+
+[data-theme="dark"] .has-text-info {
+  color: #63b3ed !important;
+}
+
+[data-theme="dark"] .has-text-success {
+  color: #68d391 !important;
+}
+
+[data-theme="dark"] .has-text-danger {
+  color: #fc8181 !important;
+}
+
+[data-theme="dark"] .free-slot-card {
+  background-color: var(--nav-bg);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .recommendation-badge {
+  background-color: #b26a00;
+  color: #f0f0f0;
+}
+
+[data-theme="light"] .recommendation-badge {
+  background-color: #ffcc80;
+  color: #333;
+}
+
+[data-theme="dark"] .range-slider {
+  background-color: #2a2f3a;
+}
+
+[data-theme="dark"] .range-slider::-webkit-slider-thumb {
+  background-color: var(--accent-color);
+}
+
+[data-theme="dark"] .range-slider::-moz-range-thumb {
+  background-color: var(--accent-color);
+}
+
+[data-theme="dark"] #minPairSlider::-webkit-slider-thumb {
+  border: 1px solid #1a1a1a;
+}
+
+[data-theme="dark"] #minPairSlider::-moz-range-thumb {
+  border: 1px solid #1a1a1a;
+}
+
+/* Дополнительные стили для расписания */
+.day-separator td {
+  background-color: var(--nav-active);
+  font-weight: bold;
+  padding: 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.schedule-container {
+  max-height: 80vh;
+  overflow-y: auto;
+  margin-top: 1rem;
+  box-shadow: 0 2px 4px var(--box-shadow);
+}
+
+.schedules-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.schedule-item.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.schedule-item:hover {
+  background-color: var(--nav-hover);
+}
+
+.selected-item {
+  background-color: var(--nav-bg);
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.selected-item button {
+  margin-left: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.filter {
+  margin-bottom: 1rem;
+}
+
+/* Темная тема для новых элементов */
+[data-theme="dark"] .day-separator td {
+  background-color: var(--nav-active);
+  border-bottom: 2px solid var(--border-color);
+}
+
+[data-theme="dark"] .schedule-container {
+  box-shadow: 0 2px 4px var(--box-shadow);
+}
+
+[data-theme="dark"] .schedule-item.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+[data-theme="dark"] .schedule-item:hover {
+  background-color: var(--nav-hover);
+}
+
+[data-theme="dark"] .selected-item {
+  background-color: #2d3545;
+  color: var(--text-color);
+}
+[data-theme="dark"] .pair-cell {
+  color: var(--text-color);
+}
+
+/* Обновленные стили для dropdown в контексте расписания */
+.filter-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-dropdown .dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: var(--bg-color);
+  min-width: 160px;
+  border: 1px solid var(--border-color);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.filter-dropdown .dropdown-item {
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+.filter-dropdown .dropdown-item:hover {
+  background-color: var(--hover-bg);
+}
+
+[data-theme="dark"] .filter-dropdown .dropdown-content {
+  background-color: var(--nav-bg);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .filter-dropdown .dropdown-item {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .filter-dropdown .dropdown-item:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Стили для темной темы компонентов Bulma */
+[data-theme="dark"] .notification.is-info.is-light {
+  background-color: #1a2e45;
+  color: #e1e7ef;
+  border: 1px solid #2d4865;
+}
+
+/* Исправление для чередующихся строк в таблице */
+[data-theme="dark"] .table.is-striped tbody tr:nth-child(even) {
+  background-color: #212632;
+}
+
+[data-theme="dark"] .table.is-striped tbody tr:nth-child(odd) {
+  background-color: var(--nav-bg);
+}
+
+[data-theme="dark"]
+  .free-slots-table.table.is-striped
+  tbody
+  tr:nth-child(even) {
+  background-color: #212632;
+}
+
+[data-theme="dark"] .free-slots-table.table.is-striped tbody tr:nth-child(odd) {
+  background-color: var(--nav-bg);
+}
+
+[data-theme="dark"] .free-slots-table tbody tr:hover {
+  background-color: #2a3141 !important;
+}
+
+/* Дополнительные стили для уведомления */
+[data-theme="dark"] .notification.is-info.is-light strong {
+  color: #78c2f3;
+}
+
+[data-theme="dark"] .notification.is-info.is-light a {
+  color: #78c2f3;
+}
+
+[data-theme="dark"] .notification.is-info.is-light a:hover {
+  color: #a1d5f7;
+}
+
+/* Дополнительные стили для таблиц */
+[data-theme="dark"] .free-slot-cell,
+[data-theme="dark"] .free-cell {
+  background-color: var(--free-slot-bg) !important;
+}
+
+[data-theme="dark"] .all-free-slot {
+  background-color: var(--all-free-slot-bg) !important;
 }
