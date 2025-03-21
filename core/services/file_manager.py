@@ -108,41 +108,68 @@ class FileManager:
         combined_content = {}
         combined_ics_data = BytesIO()
 
-        for group in groups:
-            try:
-                async with httpx.AsyncClient() as client:
-                    search_response = await self._make_request_with_retry(
-                        client,
-                        "https://schedule-of.mirea.ru/schedule/api/search",
-                        params={"match": group, "limit": 1},
-                    )
-                    search_data = search_response.json()
+        # Ограничиваем количество одновременных запросов
+        semaphore = asyncio.Semaphore(5)
 
-                    if not search_data.get("data"):
-                        continue
+        async def process_group(group):
+            async with semaphore:
+                try:
+                    async with httpx.AsyncClient() as client:
+                        search_response = await self._make_request_with_retry(
+                            client,
+                            "https://schedule-of.mirea.ru/schedule/api/search",
+                            params={"match": group, "limit": 1},
+                        )
+                        search_data = search_response.json()
 
-                    ics_link = search_data["data"][0].get("iCalLink")
-                    if not ics_link:
-                        continue
+                        if not search_data.get("data"):
+                            return None
 
-                    ics_response = await self._make_request_with_retry(client, ics_link)
-                    ics_data = ics_response.content
+                        ics_link = search_data["data"][0].get("iCalLink")
+                        if not ics_link:
+                            return None
 
-                    try:
-                        schedule_data = self.content_converter.convert(ics_data, "ics")
-                        if schedule_data:
-                            combined_content.update(schedule_data)
-                            combined_ics_data.write(ics_data)
-                    except ValueError as e:
-                        print(f"Error converting schedule for group {group}: {e}")
-                        continue
+                        ics_response = await self._make_request_with_retry(
+                            client, ics_link
+                        )
+                        ics_data = ics_response.content
 
-            except httpx.HTTPError as e:
-                print(f"Error downloading schedule for group {group}: {e}")
-                continue
+                        try:
+                            schedule_data = self.content_converter.convert(
+                                ics_data, "ics"
+                            )
+                            if schedule_data:
+                                return {
+                                    "group": group,
+                                    "data": schedule_data,
+                                    "ics_data": ics_data,
+                                }
+                        except ValueError as e:
+                            print(
+                                f"Ошибка конвертации расписания для группы {group}: {e}"
+                            )
+                            return None
+
+                except httpx.HTTPError as e:
+                    print(f"Ошибка загрузки расписания для группы {group}: {e}")
+                    return None
+
+        # Запускаем задачи параллельно
+        tasks = [process_group(group) for group in groups]
+        results = await asyncio.gather(*tasks)
+
+        # Обрабатываем результаты
+        success_count = 0
+        for result in results:
+            if result:
+                success_count += 1
+                combined_content.update(result["data"])
+                combined_ics_data.write(result["ics_data"])
 
         if not combined_content:
-            raise ValueError("No schedules could be downloaded")
+            raise ValueError("Не удалось загрузить ни одно расписание")
+
+        print(f"Успешно загружено {success_count} из {len(groups)} групп")
 
         new_file = ScheduleFile(
             original_name=f"combined_schedule_{len(groups)}_groups.ics",

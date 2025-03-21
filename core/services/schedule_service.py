@@ -1,5 +1,6 @@
 import datetime
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple
+import time
 
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -272,9 +273,9 @@ class ScheduleService:
 
     async def add_or_update_7day_schedule_from_dict(
         self,
-        semcode: int,
+        semcode: str,
         version: int,
-        data: Dict[str, Dict[str, Dict[str, Dict[str, Any]]]],
+        data: dict,
     ):
         """
         Добавляет или обновляет 7-дневное расписание из словаря
@@ -290,110 +291,147 @@ class ScheduleService:
           }
         }
         """
-        for group_title, weekdays_data in data.items():
-            group_id = await self._get_or_create_group(group_title)
+        group_ids = {}
+        disc_ids = {}
+        prep_ids = {}
 
-            # Удаляем старое расписание только для конкретной группы
-            group_rasp7_ids = await self.db.scalars(
-                select(ScRasp7.id)
-                .join(ScRasp7Groups)
-                .where(
-                    and_(
-                        ScRasp7.semcode == semcode,
-                        ScRasp7.version == version,
-                        ScRasp7Groups.group_id == group_id,
+        unique_groups = set()
+        unique_discs = set()
+        unique_preps = set()
+
+        for group_title, weekdays_data in data.items():
+            unique_groups.add(group_title)
+            for weekday_name, pairs_data in weekdays_data.items():
+                for pair_slot, odd_even_data in pairs_data.items():
+                    for week_type in ["odd", "even"]:
+                        lesson_info = odd_even_data.get(week_type)
+                        if lesson_info:
+                            unique_discs.add(lesson_info.get("subject", ""))
+                            unique_preps.add(lesson_info.get("teacher", ""))
+
+        for group_title in unique_groups:
+            group_id = await self._get_or_create_group(group_title)
+            group_ids[group_title] = group_id
+
+        for disc_title in unique_discs:
+            disc_id = await self._get_or_create_disc(disc_title)
+            disc_ids[disc_title] = disc_id
+
+        for prep_fio in unique_preps:
+            prep_id = await self._get_or_create_prep(prep_fio)
+            prep_ids[prep_fio] = prep_id
+
+        group_id_list = list(group_ids.values())
+
+        delete_stmt = delete(ScRasp7).where(
+            and_(
+                ScRasp7.semcode == semcode,
+                ScRasp7.version == version,
+                ScRasp7.id.in_(
+                    select(ScRasp7Groups.rasp7_id).where(
+                        ScRasp7Groups.group_id.in_(group_id_list)
                     )
-                )
+                ),
             )
-            if group_rasp7_ids.all():  # если есть записи для удаления
-                await self.db.execute(
-                    delete(ScRasp7).where(ScRasp7.id.in_(group_rasp7_ids))
-                )
-                await self.db.commit()
+        )
+        await self.db.execute(delete_stmt)
+        await self.db.commit()
+
+        rasp7_entries = []
+        groups_entries = []
+        rooms_entries = []
+        preps_entries = []
+
+        for group_title, weekdays_data in data.items():
+            group_id = group_ids[group_title]
 
             for weekday_name, pairs_data in weekdays_data.items():
-                weekday = WEEKDAY_MAP.get(weekday_name)
-                if not weekday and weekday != 0:
-                    continue
+                weekday = WEEKDAY_MAP.get(weekday_name, 0)
 
-                for pair_str, odd_even_data in pairs_data.items():
-                    pair = int(pair_str)
-                    # odd
+                for pair_slot, odd_even_data in pairs_data.items():
+                    pair = int(pair_slot.replace("Пара ", ""))
+
                     odd_info = odd_even_data.get("odd")
                     if odd_info:
-                        await self._create_7day_entry(
+                        rasp7 = ScRasp7(
                             semcode=semcode,
                             version=version,
+                            disc_id=disc_ids.get(odd_info["subject"], 0),
                             weekday=weekday,
                             pair=pair,
                             weeksarray=ODD_WEEKS,
-                            info=odd_info,
-                            group_id=group_id,
+                            weekstext=",".join(map(str, ODD_WEEKS)),
+                            worktype=settings.LESSON_TYPES.get(
+                                odd_info.get("lesson_type", "ПР"), 0
+                            ),
+                        )
+                        rasp7_entries.append(rasp7)
+                        rasp7_idx = len(rasp7_entries) - 1
+
+                        groups_entries.append((rasp7_idx, group_id))
+                        rooms_entries.append((rasp7_idx, odd_info.get("room", "")))
+                        preps_entries.append(
+                            (rasp7_idx, prep_ids.get(odd_info["teacher"], 0))
                         )
 
-                    # even
                     even_info = odd_even_data.get("even")
                     if even_info:
-                        await self._create_7day_entry(
+                        rasp7 = ScRasp7(
                             semcode=semcode,
                             version=version,
+                            disc_id=disc_ids.get(even_info["subject"], 0),
                             weekday=weekday,
                             pair=pair,
                             weeksarray=EVEN_WEEKS,
-                            info=even_info,
-                            group_id=group_id,
+                            weekstext=",".join(map(str, EVEN_WEEKS)),
+                            worktype=settings.LESSON_TYPES.get(
+                                even_info.get("lesson_type", "ПР"), 0
+                            ),
+                        )
+                        rasp7_entries.append(rasp7)
+                        rasp7_idx = len(rasp7_entries) - 1
+
+                        groups_entries.append((rasp7_idx, group_id))
+                        rooms_entries.append((rasp7_idx, even_info.get("room", "")))
+                        preps_entries.append(
+                            (rasp7_idx, prep_ids.get(even_info["teacher"], 0))
                         )
 
-        await self.db.commit()
-        # Генерируем 18-недельное расписание
+        if rasp7_entries:
+            chunk_size = 500
+            for i in range(0, len(rasp7_entries), chunk_size):
+                chunk = rasp7_entries[i : i + chunk_size]
+                self.db.add_all(chunk)
+                await self.db.flush()
+
+            related_entries = []
+
+            for rasp7_idx, group_id in groups_entries:
+                related_entries.append(
+                    ScRasp7Groups(
+                        rasp7_id=rasp7_entries[rasp7_idx].id, group_id=group_id
+                    )
+                )
+
+            # Добавляем аудитории
+            for rasp7_idx, room in rooms_entries:
+                related_entries.append(
+                    ScRasp7Rooms(rasp7_id=rasp7_entries[rasp7_idx].id, room=room)
+                )
+
+            # Добавляем преподавателей
+            for rasp7_idx, prep_id in preps_entries:
+                related_entries.append(
+                    ScRasp7Preps(rasp7_id=rasp7_entries[rasp7_idx].id, prep_id=prep_id)
+                )
+
+            for i in range(0, len(related_entries), chunk_size):
+                chunk = related_entries[i : i + chunk_size]
+                self.db.add_all(chunk)
+                await self.db.flush()
+            await self.db.commit()
+
         await self._generate_18week_schedule(semcode, version)
-
-    async def _create_7day_entry(
-        self,
-        semcode: int,
-        version: int,
-        weekday: int,
-        pair: int,
-        weeksarray: list[int],
-        info: Dict[str, Any],
-        group_id: int,
-    ):
-        """Создает запись в расписании ScRasp7"""
-        disc_id = await self._get_or_create_disc(info["subject"])
-        prep_id = await self._get_or_create_prep(info["teacher"])
-        room = info["room"]
-
-        # Определяем тип занятия
-        lesson_type = info.get("lesson_type", "ПР")
-        lesson_type_id = settings.LESSON_TYPES.get(lesson_type, 0)
-
-        # weekstext можно сформировать по weeksarray, или оставить пустым
-        weekstext = ",".join(map(str, weeksarray))
-
-        rasp7 = ScRasp7(
-            semcode=semcode,
-            version=version,
-            disc_id=disc_id,
-            weekday=weekday,
-            pair=pair,
-            weeksarray=weeksarray,
-            weekstext=weekstext,
-            worktype=lesson_type_id,  # worktype = lesson_type_id
-        )
-        self.db.add(rasp7)
-        await self.db.flush()
-
-        # groups
-        g_entry = ScRasp7Groups(rasp7_id=rasp7.id, group_id=group_id)
-        self.db.add(g_entry)
-
-        # rooms
-        r_entry = ScRasp7Rooms(rasp7_id=rasp7.id, room=room)
-        self.db.add(r_entry)
-
-        # preps
-        p_entry = ScRasp7Preps(rasp7_id=rasp7.id, prep_id=prep_id)
-        self.db.add(p_entry)
 
     async def _ensure_18week_days(self, semcode: int) -> None:
         """Ensures that all necessary ScRasp18Days entries exist for the semester."""
@@ -439,7 +477,6 @@ class ScheduleService:
         self, semcode: int, version: int, start_date: Optional[datetime.date] = None
     ):
         """Генерирует 18-недельное расписание на основе 7-дневного"""
-
         await self._ensure_18week_days(semcode)
 
         if start_date is None:
@@ -462,14 +499,13 @@ class ScheduleService:
             .where(and_(ScRasp7.semcode == semcode, ScRasp7.version == version))
             .options(
                 selectinload(ScRasp7.discipline),
-                selectinload(ScRasp7.groups).options(selectinload(ScRasp7Groups.group)),
+                selectinload(ScRasp7.groups),
                 selectinload(ScRasp7.rooms),
-                selectinload(ScRasp7.preps).options(selectinload(ScRasp7Preps.prep)),
+                selectinload(ScRasp7.preps),
             )
         )
         rasp7_entries = (await self.db.scalars(q_rasp7)).all()
 
-        # Индексируем по weekday
         rasp7_by_weekday = {}
         for r7 in rasp7_entries:
             rasp7_by_weekday.setdefault(r7.weekday, []).append(r7)
@@ -481,6 +517,9 @@ class ScheduleService:
             .order_by(ScRasp18Days.day)
         )
         all_days = (await self.db.scalars(q_days)).all()
+
+        rasp18_entries = []
+        related_entries = {"groups": [], "rooms": [], "preps": []}
 
         for day_obj in all_days:
             day_rasp7 = rasp7_by_weekday.get(day_obj.weekday, [])
@@ -498,23 +537,50 @@ class ScheduleService:
                         timestart=timestart,
                         timeend=timeend,
                     )
-                    self.db.add(rasp18_entry)
-                    await self.db.flush()
+                    rasp18_entries.append(rasp18_entry)
+                    entry_idx = len(rasp18_entries) - 1
 
                     for g in r7.groups:
-                        self.db.add(
-                            ScRasp18Groups(
-                                rasp18_id=rasp18_entry.id, group_id=g.group_id
-                            )
-                        )
+                        related_entries["groups"].append((entry_idx, g.group_id))
+
                     for rm in r7.rooms:
-                        self.db.add(
-                            ScRasp18Rooms(rasp18_id=rasp18_entry.id, room=rm.room)
-                        )
+                        related_entries["rooms"].append((entry_idx, rm.room))
+
                     for p in r7.preps:
-                        self.db.add(
-                            ScRasp18Preps(rasp18_id=rasp18_entry.id, prep_id=p.prep_id)
-                        )
+                        related_entries["preps"].append((entry_idx, p.prep_id))
+
+        if rasp18_entries:
+            chunk_size = 1000
+            for i in range(0, len(rasp18_entries), chunk_size):
+                chunk = rasp18_entries[i : i + chunk_size]
+                self.db.add_all(chunk)
+                await self.db.flush()  # Необходимо для получения ID
+
+            all_related = []
+
+            for entry_idx, group_id in related_entries["groups"]:
+                all_related.append(
+                    ScRasp18Groups(
+                        rasp18_id=rasp18_entries[entry_idx].id, group_id=group_id
+                    )
+                )
+
+            for entry_idx, room in related_entries["rooms"]:
+                all_related.append(
+                    ScRasp18Rooms(rasp18_id=rasp18_entries[entry_idx].id, room=room)
+                )
+
+            for entry_idx, prep_id in related_entries["preps"]:
+                all_related.append(
+                    ScRasp18Preps(
+                        rasp18_id=rasp18_entries[entry_idx].id, prep_id=prep_id
+                    )
+                )
+
+            for i in range(0, len(all_related), chunk_size):
+                chunk = all_related[i : i + chunk_size]
+                self.db.add_all(chunk)
+                await self.db.flush()
 
         await self.db.commit()
 
