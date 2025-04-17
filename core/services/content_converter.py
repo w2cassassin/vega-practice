@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from io import BytesIO
-from typing import Any, Dict
+from typing import Any, Dict, List, Set
+import re
+from dateutil import rrule as dateutil_rrule
 
 from icalendar import Calendar
 from openpyxl import load_workbook
@@ -160,7 +162,8 @@ class StandardContentConverter:
         temp_events = []
         event_dates = []
 
-        # Сначала собираем все даты
+        current_date = datetime.now().date()
+
         for component in cal.walk():
             if component.name == "VEVENT":
                 start_date = component.get("dtstart").dt
@@ -168,24 +171,23 @@ class StandardContentConverter:
                     event_dates.append(start_date)
 
         if not event_dates:
-            # Если нет событий, возвращаем пустой результат
             return {}
 
-        # Определим дату начала семестра как понедельник той недели, когда было первое событие
         earliest_date = min(event_dates)
-        # Найдем понедельник той же недели
-        start_of_week = earliest_date - timedelta(
-            days=earliest_date.weekday()
-        )  # weekday() дает 0 для понедельника
+        start_of_week = earliest_date - timedelta(days=earliest_date.weekday())
         self.start_of_semester = start_of_week
 
-        # Теперь повторно пройдемся по событиям
+        event_map = {}
+
         for component in cal.walk():
             if component.name == "VEVENT":
                 summary = str(component.get("summary", ""))
                 description = str(component.get("description", ""))
 
                 start_date = component.get("dtstart").dt
+                if not isinstance(start_date, datetime):
+                    continue
+
                 weekday = WEEKDAYS[start_date.weekday()]
                 lesson_num = str(self._get_lesson_number(start_date))
 
@@ -206,15 +208,30 @@ class StandardContentConverter:
                 room, campus = self._extract_room_campus(location)
                 teacher = self._extract_teacher(description)
 
-                # Проверим правило повторения
                 rrule = component.get("RRULE")
                 parity = None
                 if rrule:
                     interval = rrule.get("INTERVAL", [1])[0]
                     if interval == 2:
-                        # Если мероприятие повторяется каждые две недели
                         week_number = self._get_week_number(start_date)
                         parity = self._get_week_parity(week_number)
+
+                event_occurrences = self._get_event_occurrences(component)
+
+                # Фильтруем даты, оставляя только будущие
+                future_occurrences = [
+                    d for d in event_occurrences if d.date() >= current_date
+                ]
+
+                if not future_occurrences:
+                    continue
+
+                if future_occurrences:
+                    start_date_str = min(future_occurrences).strftime("%Y-%m-%d")
+                    end_date_str = max(future_occurrences).strftime("%Y-%m-%d")
+                else:
+                    start_date_str = None
+                    end_date_str = None
 
                 data = {
                     "subject": subject,
@@ -223,24 +240,26 @@ class StandardContentConverter:
                     "campus": campus,
                     "lesson_type": lesson_type,
                     "lesson_type_id": lesson_type_id,
+                    "date_start": start_date_str,
+                    "date_end": end_date_str,
+                    "dates": [d.strftime("%Y-%m-%d") for d in future_occurrences],
                 }
 
-                temp_events.append(
-                    {
+                event_key = (weekday, lesson_num, parity)
+                if event_key not in event_map:
+                    event_map[event_key] = {
                         "group": group_name,
                         "weekday": weekday,
                         "lesson_num": lesson_num,
                         "parity": parity,
                         "data": data,
                     }
-                )
 
-        # Сформируем итоговую структуру
-        for event in temp_events:
+        for event_key, event in event_map.items():
             group = event["group"]
             weekday = event["weekday"]
             lesson_num = event["lesson_num"]
-            parity = event["parity"]  # будет None, если повтор каждую неделю
+            parity = event["parity"]
 
             if group not in result:
                 result[group] = {day: {} for day in WEEKDAYS}
@@ -256,20 +275,56 @@ class StandardContentConverter:
         return result
 
     def _extract_room_campus(self, location: str) -> tuple:
-        """Извлечь аудиторию и кампус из строки"""
-        parts = location.split(" ")
-        room = parts[0].strip() if parts else ""
-        campus = (
-            parts[1].strip().replace("(", "").replace(")", "") if len(parts) > 1 else ""
-        )
-        return room, campus
+        """Извлечь аудитории и кампусы из строки"""
+        rooms = []
+        campuses = []
+
+        location_parts = location.split()
+
+        i = 0
+        while i < len(location_parts):
+            if i < len(location_parts) and not location_parts[i].startswith("("):
+                room = location_parts[i].strip()
+                campus = ""
+
+                if i + 1 < len(location_parts) and location_parts[i + 1].startswith(
+                    "("
+                ):
+                    campus = (
+                        location_parts[i + 1].strip().replace("(", "").replace(")", "")
+                    )
+                    i += 2
+                else:
+                    i += 1
+
+                rooms.append(room)
+                campuses.append(campus)
+            else:
+                i += 1
+
+        if not rooms:
+            return "", ""
+
+        return ", ".join(rooms), ", ".join(campuses)
 
     def _extract_teacher(self, description: str) -> str:
-        """Извлечь имя преподавателя из описания и конвертировать в сокращенный формат"""
+        """Извлечь имена преподавателей из описания и конвертировать в сокращенный формат"""
+        teachers = []
         if "Преподаватель:" in description:
             full_name = description.split("Преподаватель:")[1].split("\n")[0].strip()
-            return self._convert_full_name(full_name)
-        return ""
+            teachers.append(self._convert_full_name(full_name))
+        elif "Преподаватели:" in description:
+            teachers_section = description.split("Преподаватели:")[1]
+
+            if "\n\n" in teachers_section:
+                teachers_section = teachers_section.split("\n\n")[0]
+
+            teacher_lines = teachers_section.strip().split("\n")
+            for teacher_name in teacher_lines:
+                if teacher_name.strip():
+                    teachers.append(self._convert_full_name(teacher_name.strip()))
+
+        return ", ".join(teachers)
 
     def _get_lesson_number(self, start_time) -> int:
         """Конвертировать время начала в номер пары"""
@@ -295,3 +350,64 @@ class StandardContentConverter:
     def _get_week_parity(self, week_number: int) -> str:
         """Вернуть 'even' или 'odd' в зависимости от номера недели"""
         return "even" if week_number % 2 == 0 else "odd"
+
+    def _get_event_occurrences(self, component) -> List[datetime]:
+        """Получить все даты проведения занятия с учетом правил повторения и исключений"""
+        start_date = component.get("dtstart").dt
+        if not isinstance(start_date, datetime):
+            return []
+
+        rrule_dict = component.get("RRULE", {})
+        if not rrule_dict:
+            return [start_date]
+
+        exdates = []
+        if "EXDATE" in component:
+            for exdate in component.get("EXDATE", []).dts:
+                if isinstance(exdate, list):
+                    for ex_dt in exdate:
+                        if hasattr(ex_dt, "dt"):
+                            exdates.append(ex_dt.dt)
+                elif hasattr(exdate, "dt"):
+                    exdates.append(exdate.dt)
+
+        freq = rrule_dict.get("FREQ", ["WEEKLY"])[0]
+        interval = int(rrule_dict.get("INTERVAL", [1])[0])
+        until = None
+        if "UNTIL" in rrule_dict:
+            until_str = rrule_dict.get("UNTIL")[0]
+            if isinstance(until_str, datetime):
+                until = until_str
+            elif isinstance(until_str, str):
+                if "T" in until_str:
+                    until = datetime.strptime(
+                        until_str.replace("Z", ""), "%Y%m%dT%H%M%S"
+                    )
+                else:
+                    until = datetime.strptime(until_str, "%Y%m%d")
+
+        rule_params = {
+            "freq": self._get_dateutil_freq(freq),
+            "dtstart": start_date,
+            "interval": interval,
+        }
+
+        if until:
+            rule_params["until"] = until
+
+        dates = list(dateutil_rrule.rrule(**rule_params))
+
+        return [date for date in dates if date not in exdates]
+
+    def _get_dateutil_freq(self, freq_str: str) -> int:
+        """Преобразование строкового представления частоты в константу dateutil.rrule"""
+        freq_map = {
+            "YEARLY": dateutil_rrule.YEARLY,
+            "MONTHLY": dateutil_rrule.MONTHLY,
+            "WEEKLY": dateutil_rrule.WEEKLY,
+            "DAILY": dateutil_rrule.DAILY,
+            "HOURLY": dateutil_rrule.HOURLY,
+            "MINUTELY": dateutil_rrule.MINUTELY,
+            "SECONDLY": dateutil_rrule.SECONDLY,
+        }
+        return freq_map.get(freq_str, dateutil_rrule.WEEKLY)

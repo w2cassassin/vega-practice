@@ -37,7 +37,7 @@ async def get_schedule(
 
 @router.get("/search")
 async def search_items(
-    search_type: Literal["group", "prep", "room"] = Query(
+    search_type: Literal["subject", "group", "prep", "room"] = Query(
         ..., description="Тип поиска"
     ),
     q: str = Query(..., description="Поисковый запрос"),
@@ -147,3 +147,25 @@ async def get_current_week(
         semcode = await schedule_service.get_current_semcode()
 
     return await schedule_service.get_current_week_info(semcode)
+
+
+@router.post("/add-lesson")
+async def add_lesson(
+    data: dict,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+) -> Dict[str, Any]:
+    """
+    Добавляет новую пару в расписание
+    """
+    semcode = await schedule_service.get_current_semcode()
+    return await schedule_service.add_lesson(
+        semcode=semcode,
+        datestr=data["date"],
+        pair=data["pair"],
+        kind=data["kind"],
+        worktype=data["worktype"],
+        disc_title=data["subject"],
+        group_titles=data["groups"],
+        prep_fios=data["teachers"],
+        rooms=data["rooms"],
+    )

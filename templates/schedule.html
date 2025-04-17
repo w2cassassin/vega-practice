@@ -201,6 +201,143 @@
       </div>
     </div>
 
+    <!-- Модальное окно для добавления пары -->
+    <div id="addLessonModal" class="modal">
+      <div class="modal-background"></div>
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Добавление пары</p>
+          <button
+            class="delete"
+            aria-label="close"
+            onclick="closeAddLessonModal()"
+          ></button>
+        </header>
+        <section class="modal-card-body">
+          <div id="addLessonForm">
+            <input type="hidden" id="lessonDate" />
+            <input type="hidden" id="lessonPair" />
+            <input type="hidden" id="lessonEntity" />
+            <input type="hidden" id="lessonEntityType" />
+
+            <div class="field">
+              <label class="label">Предмет</label>
+              <div class="control">
+                <div class="autocomplete-wrapper">
+                  <input
+                    class="input"
+                    type="text"
+                    id="lessonSubject"
+                    placeholder="Введите название предмета"
+                    required
+                  />
+                  <div class="autocomplete-dropdown" id="subjectDropdown"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label">Тип занятия</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select id="lessonType">
+                    <option value="0">Практическое занятие (ПР)</option>
+                    <option value="1">Лекция (ЛК)</option>
+                    <option value="2">Лабораторная работа (ЛАБ)</option>
+                    <option value="11">Экзамен (ЭКЗ)</option>
+                    <option value="12">Зачет (ЗАЧ)</option>
+                    <option value="14">Контрольная работа (КР)</option>
+                    <option value="15">Курсовой проект (КП)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label">Преподаватели</label>
+              <div class="control">
+                <div class="autocomplete-wrapper">
+                  <div class="input-with-button">
+                    <input
+                      class="input"
+                      type="text"
+                      id="lessonTeacherInput"
+                      placeholder="Введите фамилию преподавателя"
+                    />
+                    <button
+                      type="button"
+                      class="button is-primary is-small"
+                      onclick="addManualTeacher()"
+                    >
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                  <div class="autocomplete-dropdown" id="teacherDropdown"></div>
+                </div>
+                <div class="tags-container" id="selectedTeachers"></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label">Аудитории</label>
+              <div class="control">
+                <div class="autocomplete-wrapper">
+                  <div class="input-with-button">
+                    <input
+                      class="input"
+                      type="text"
+                      id="lessonRoomInput"
+                      placeholder="Введите номер аудитории"
+                    />
+                    <button
+                      type="button"
+                      class="button is-primary is-small"
+                      onclick="addManualRoom()"
+                    >
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                  <div class="autocomplete-dropdown" id="roomDropdown"></div>
+                </div>
+                <div class="tags-container" id="selectedRooms"></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label">Группы</label>
+              <div class="control">
+                <div class="autocomplete-wrapper">
+                  <div class="input-with-button">
+                    <input
+                      class="input"
+                      type="text"
+                      id="lessonGroupInput"
+                      placeholder="Введите номер группы"
+                    />
+                    <button
+                      type="button"
+                      class="button is-primary is-small"
+                      onclick="addManualGroup()"
+                    >
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                  <div class="autocomplete-dropdown" id="groupDropdown"></div>
+                </div>
+                <div class="tags-container" id="selectedGroups"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <footer class="modal-card-foot">
+          <button class="button is-success" onclick="saveLesson()">
+            Сохранить
+          </button>
+          <button class="button" onclick="closeAddLessonModal()">Отмена</button>
+        </footer>
+      </div>
+    </div>
+
     <script>
       function toggleTheme() {
         const theme =
@@ -744,6 +881,11 @@
               totalCellsCount++;
               const pairData = scheduleData[entity]?.[date]?.[pair];
               const cell = document.createElement("td");
+              cell.dataset.date = date;
+              cell.dataset.pair = pair;
+              cell.dataset.entity = entity;
+              cell.dataset.entityType = getEntityType(entity);
+              cell.addEventListener("click", handleCellClick);
 
               if (pairData) {
                 busyCellsCount++;
@@ -1017,6 +1159,394 @@
       document.getElementById("dateTo").addEventListener("change", function () {
         freeSlotsData = null;
         document.getElementById("pairsRangeFilter").style.display = "none";
+      });
+
+      // Определение типа сущности (группа, преподаватель, аудитория)
+      function getEntityType(entity) {
+        const filterWithEntity = filters.find((filter) =>
+          filter.values.includes(entity)
+        );
+
+        return filterWithEntity ? filterWithEntity.type : null;
+      }
+
+      // Обработчик клика по ячейке расписания
+      function handleCellClick(event) {
+        const cell = event.currentTarget;
+
+        // Проверяем, является ли ячейка свободной
+        if (!cell.classList.contains("free-cell")) {
+          return; // Не открываем модальное окно для занятых ячеек
+        }
+
+        const date = cell.dataset.date;
+        const pair = cell.dataset.pair;
+        const entity = cell.dataset.entity;
+        const entityType = cell.dataset.entityType;
+
+        // Открываем модальное окно для добавления пары
+        openAddLessonModal(date, pair, entity, entityType);
+      }
+
+      // Открыть модальное окно для добавления пары
+      function openAddLessonModal(date, pair, entity, entityType) {
+        document.getElementById("lessonDate").value = date;
+        document.getElementById("lessonPair").value = pair;
+        document.getElementById("lessonEntity").value = entity;
+        document.getElementById("lessonEntityType").value = entityType;
+
+        // Очищаем выбранные элементы
+        document.getElementById("selectedTeachers").innerHTML = "";
+        document.getElementById("selectedRooms").innerHTML = "";
+        document.getElementById("selectedGroups").innerHTML = "";
+
+        // Предзаполнение полей в зависимости от типа сущности
+        if (entityType === "group") {
+          addTagItem("selectedGroups", entity);
+        } else if (entityType === "prep") {
+          addTagItem("selectedTeachers", entity);
+        } else if (entityType === "room") {
+          addTagItem("selectedRooms", entity);
+        }
+
+        // Очищаем поля ввода
+        document.getElementById("lessonSubject").value = "";
+        document.getElementById("lessonTeacherInput").value = "";
+        document.getElementById("lessonRoomInput").value = "";
+        document.getElementById("lessonGroupInput").value = "";
+
+        // Показываем модальное окно
+        document.getElementById("addLessonModal").classList.add("is-active");
+
+        // Инициализируем выпадающие списки для автозаполнения
+        initializeAutocomplete();
+      }
+
+      // Закрыть модальное окно
+      function closeAddLessonModal() {
+        document.getElementById("addLessonModal").classList.remove("is-active");
+
+        // Скрываем все выпадающие списки
+        document
+          .querySelectorAll(".autocomplete-dropdown")
+          .forEach((dropdown) => {
+            dropdown.style.display = "none";
+          });
+      }
+
+      // Добавление тега в контейнер
+      function addTagItem(containerId, value) {
+        if (!value.trim()) return;
+
+        const container = document.getElementById(containerId);
+
+        // Проверяем, нет ли уже такого элемента
+        if (
+          Array.from(container.querySelectorAll(".tag")).some(
+            (item) => item.dataset.value === value
+          )
+        ) {
+          return;
+        }
+
+        const tag = document.createElement("span");
+        tag.classList.add("tag", "is-medium", "is-info", "mb-2", "mr-2");
+        tag.dataset.value = value;
+
+        tag.innerHTML = `
+          ${value}
+          <button type="button" class="delete is-small" onclick="this.parentNode.remove()"></button>
+        `;
+
+        container.appendChild(tag);
+      }
+
+      // Ручное добавление преподавателя
+      function addManualTeacher() {
+        const input = document.getElementById("lessonTeacherInput");
+        if (input.value.trim()) {
+          addTagItem("selectedTeachers", input.value.trim());
+          input.value = "";
+        }
+      }
+
+      // Ручное добавление аудитории
+      function addManualRoom() {
+        const input = document.getElementById("lessonRoomInput");
+        if (input.value.trim()) {
+          addTagItem("selectedRooms", input.value.trim());
+          input.value = "";
+        }
+      }
+
+      // Ручное добавление группы
+      function addManualGroup() {
+        const input = document.getElementById("lessonGroupInput");
+        if (input.value.trim()) {
+          addTagItem("selectedGroups", input.value.trim());
+          input.value = "";
+        }
+      }
+
+      // Получить все выбранные элементы из контейнера
+      function getSelectedValues(containerId) {
+        const container = document.getElementById(containerId);
+        return Array.from(container.querySelectorAll(".tag")).map(
+          (item) => item.dataset.value
+        );
+      }
+
+      // Инициализация автозаполнения для всех полей
+      function initializeAutocomplete() {
+        // Инициализация для предметов
+        initFieldAutocomplete(
+          "lessonSubject",
+          "subjectDropdown",
+          "subject",
+          (item) => {
+            document.getElementById("lessonSubject").value = item;
+          }
+        );
+
+        // Инициализация для преподавателей
+        initFieldAutocomplete(
+          "lessonTeacherInput",
+          "teacherDropdown",
+          "prep",
+          (item) => {
+            addTagItem("selectedTeachers", item);
+            document.getElementById("lessonTeacherInput").value = "";
+          }
+        );
+
+        // Инициализация для аудиторий
+        initFieldAutocomplete(
+          "lessonRoomInput",
+          "roomDropdown",
+          "room",
+          (item) => {
+            addTagItem("selectedRooms", item);
+            document.getElementById("lessonRoomInput").value = "";
+          }
+        );
+
+        // Инициализация для групп
+        initFieldAutocomplete(
+          "lessonGroupInput",
+          "groupDropdown",
+          "group",
+          (item) => {
+            addTagItem("selectedGroups", item);
+            document.getElementById("lessonGroupInput").value = "";
+          }
+        );
+
+        // Скрыть выпадающие списки при клике вне
+        document.addEventListener("click", function (e) {
+          if (!e.target.matches(".input")) {
+            document
+              .querySelectorAll(".autocomplete-dropdown")
+              .forEach((dropdown) => {
+                dropdown.style.display = "none";
+              });
+          }
+        });
+      }
+
+      // Общая функция инициализации автозаполнения для поля
+      function initFieldAutocomplete(
+        inputId,
+        dropdownId,
+        searchType,
+        selectCallback
+      ) {
+        const input = document.getElementById(inputId);
+        const dropdown = document.getElementById(dropdownId);
+
+        input.addEventListener("input", async function (e) {
+          const query = e.target.value.trim();
+          if (query.length < 1) {
+            // Изменено с 2 на 1 символ
+            dropdown.style.display = "none";
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `${API_HOST}/schedule/search?search_type=${searchType}&q=${encodeURIComponent(
+                query
+              )}`
+            );
+            const suggestions = await response.json();
+
+            dropdown.innerHTML = "";
+
+            if (suggestions.length === 0) {
+              dropdown.style.display = "none";
+              return;
+            }
+
+            suggestions.forEach((item) => {
+              const itemDiv = document.createElement("div");
+              itemDiv.classList.add("autocomplete-item");
+              itemDiv.textContent = item;
+              itemDiv.onclick = () => {
+                selectCallback(item);
+                dropdown.style.display = "none";
+              };
+              dropdown.appendChild(itemDiv);
+            });
+
+            dropdown.style.display = "block";
+          } catch (error) {
+            console.error(
+              `Ошибка при загрузке списка для ${searchType}:`,
+              error
+            );
+          }
+        });
+
+        // Добавление по нажатию Enter
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" && input.value.trim()) {
+            // Проверяем, есть ли активные выпадающие элементы
+            const activeItem = dropdown.querySelector(
+              ".autocomplete-item.active"
+            );
+            if (activeItem) {
+              selectCallback(activeItem.textContent);
+            } else if (inputId !== "lessonSubject") {
+              selectCallback(input.value.trim());
+            }
+            dropdown.style.display = "none";
+            e.preventDefault();
+          } else if (e.key === "ArrowDown") {
+            navigateDropdown(dropdown, "down");
+            e.preventDefault();
+          } else if (e.key === "ArrowUp") {
+            navigateDropdown(dropdown, "up");
+            e.preventDefault();
+          }
+        });
+      }
+
+      // Функция для навигации по выпадающему списку с клавиатуры
+      function navigateDropdown(dropdown, direction) {
+        const items = dropdown.querySelectorAll(".autocomplete-item");
+        if (items.length === 0) return;
+
+        const activeItem = dropdown.querySelector(".autocomplete-item.active");
+
+        if (!activeItem) {
+          // Если нет активного элемента, выбираем первый или последний
+          if (direction === "down") {
+            items[0].classList.add("active");
+          } else {
+            items[items.length - 1].classList.add("active");
+          }
+          return;
+        }
+
+        // Удаляем текущий активный класс
+        activeItem.classList.remove("active");
+
+        // Находим индекс текущего активного элемента
+        let currentIndex = Array.from(items).indexOf(activeItem);
+
+        // Вычисляем новый индекс
+        if (direction === "down") {
+          currentIndex = (currentIndex + 1) % items.length;
+        } else {
+          currentIndex = (currentIndex - 1 + items.length) % items.length;
+        }
+
+        // Делаем новый элемент активным
+        items[currentIndex].classList.add("active");
+
+        // Если элемент не виден, прокручиваем к нему
+        if (
+          items[currentIndex].offsetTop < dropdown.scrollTop ||
+          items[currentIndex].offsetTop + items[currentIndex].offsetHeight >
+            dropdown.scrollTop + dropdown.offsetHeight
+        ) {
+          dropdown.scrollTop =
+            items[currentIndex].offsetTop - dropdown.offsetHeight / 2;
+        }
+      }
+
+      // Сохранение новой пары
+      async function saveLesson() {
+        const date = document.getElementById("lessonDate").value;
+        const pair = document.getElementById("lessonPair").value;
+        const subject = document.getElementById("lessonSubject").value;
+        const lessonType = document.getElementById("lessonType").value;
+        const kind = 0;
+
+        const teachers = getSelectedValues("selectedTeachers");
+        const rooms = getSelectedValues("selectedRooms");
+        const groups = getSelectedValues("selectedGroups");
+
+        if (
+          !subject ||
+          teachers.length === 0 ||
+          rooms.length === 0 ||
+          groups.length === 0
+        ) {
+          alert(
+            "Пожалуйста, заполните все обязательные поля (предмет, преподаватель, аудитория, группа)"
+          );
+          return;
+        }
+
+        showLoading();
+
+        try {
+          const payload = {
+            date: date,
+            pair: parseInt(pair),
+            subject: subject,
+            worktype: parseInt(lessonType),
+            teachers: teachers,
+            rooms: rooms,
+            kind: parseInt(kind),
+            groups: groups,
+            semcode: currentSemcode,
+          };
+
+          const response = await fetch(`${API_HOST}/schedule/add-lesson`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Ошибка при добавлении пары");
+          }
+
+          // Обновляем расписание
+          await loadSchedules();
+
+          // Закрываем модальное окно
+          closeAddLessonModal();
+        } catch (error) {
+          console.error("Ошибка при сохранении пары:", error);
+          alert(`Ошибка при сохранении: ${error.message}`);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // Добавляем обработчики для закрытия модального окна
+        const modalCloseButtons = document.querySelectorAll(
+          "#addLessonModal .delete, #addLessonModal .modal-background"
+        );
+        modalCloseButtons.forEach((button) => {
+          button.addEventListener("click", closeAddLessonModal);
+        });
       });
     </script>
   </body>

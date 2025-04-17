@@ -2,6 +2,7 @@
 .schedule-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .schedule-table th,
@@ -10,6 +11,21 @@
   padding: 12px;
   text-align: center;
   font-size: 0.95rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.schedule-table td {
+  transition: background-color 0.2s ease;
+  cursor: default;
+}
+
+.schedule-table td.free-cell {
+  cursor: pointer;
+}
+
+.schedule-table td:hover {
+  background-color: var(--nav-hover);
 }
 
 .schedule-table th {
@@ -24,7 +40,7 @@
 }
 
 .pair-cell {
-  min-width: 200px;
+  width: auto;
 }
 .pair-time {
   color: var(--info-text) !important;
@@ -736,8 +752,8 @@
 }
 
 .schedule-container {
-  max-height: 80vh;
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
   margin-top: 1rem;
   box-shadow: 0 2px 4px var(--box-shadow);
 }
@@ -894,4 +910,198 @@
 
 [data-theme="dark"] .all-free-slot {
   background-color: var(--all-free-slot-bg) !important;
+}
+
+/* Стили для модального окна добавления пары */
+.teacher-input-container,
+.room-input-container,
+.group-input-container,
+.autocomplete-container,
+.autocomplete-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Стили для выпадающих списков */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  display: none;
+  margin-top: 2px;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Элементы выпадающего списка */
+.autocomplete-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+/* Поле ввода с кнопкой */
+.input-with-button {
+  display: flex;
+  align-items: center;
+}
+
+.input-with-button .input {
+  flex-grow: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-with-button .button {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+  height: 2.5rem;
+}
+
+/* Стили для контейнера с тегами */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  min-height: 30px;
+  padding: 5px 0;
+}
+
+/* Стиль для тегов */
+.tag {
+  margin-right: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.tag.is-info {
+  background-color: var(--accent-color);
+}
+
+.tag.is-info:hover {
+  background-color: var(--link-hover);
+}
+
+.tag .delete {
+  margin-left: 8px;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.3);
+  transition: background-color 0.2s;
+}
+
+.tag .delete:hover {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Дополнительные стили для модального окна в темной теме */
+[data-theme="dark"] .modal-card-head,
+[data-theme="dark"] .modal-card-foot {
+  background-color: var(--nav-bg);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-card-body {
+  background-color: var(--bg-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-card-title {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .autocomplete-dropdown {
+  background-color: var(--nav-bg);
+  border-color: var(--border-color);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .autocomplete-item {
+  color: var(--text-color);
+  border-color: #2d3545;
+}
+
+[data-theme="dark"] .autocomplete-item:hover,
+[data-theme="dark"] .autocomplete-item.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+[data-theme="dark"] .tag.is-info {
+  background-color: var(--accent-color);
+}
+
+[data-theme="dark"] .tag.is-info:hover {
+  background-color: var(--link-hover);
+}
+
+/* Стили для интерактивных элементов в модальном окне */
+.modal-card-body .field {
+  margin-bottom: 1.5rem;
+}
+
+.modal-card-body .label {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.modal-card-body .button.is-small {
+  font-size: 0.85rem;
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+/* Добавление подсказки для ячеек */
+.free-cell::after {
+  content: "Нажмите для добавления";
+  display: block;
+  font-size: 0.75rem;
+  color: var(--info-text);
+  margin-top: 4px;
+}
+
+/* Улучшения для мобильных устройств */
+@media screen and (max-width: 768px) {
+  .modal-card {
+    width: 95%;
+    max-width: none;
+    margin: 0 auto;
+  }
+
+  .tags-container {
+    gap: 5px;
+  }
+
+  .tag {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+  }
+
+  .input-with-button .button {
+    height: 2.25rem;
+  }
 }

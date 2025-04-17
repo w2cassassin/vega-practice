@@ -1,11 +1,10 @@
-from sqlalchemy import (ARRAY, Column, Date, ForeignKey, Index, Integer,
-                        String, Text)
+from sqlalchemy import ARRAY, Column, Date, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
-from core.db.base_class import BaseWithId  # Changed from Base to BaseWithId
+from core.db.base_class import BaseWithId
 
 
-class ScDisc(BaseWithId):  # Now inherits just id without created_at
+class ScDisc(BaseWithId):
     __tablename__ = "sc_disc"
     title = Column(Text, nullable=False)
     rasp7_entries = relationship(
@@ -16,7 +15,7 @@ class ScDisc(BaseWithId):  # Now inherits just id without created_at
     )
 
 
-class ScGroup(BaseWithId):  # Change Base to BaseWithId
+class ScGroup(BaseWithId):
     __tablename__ = "sc_group"
     title = Column(Text, nullable=False)
     rasp7_groups = relationship(
@@ -27,7 +26,7 @@ class ScGroup(BaseWithId):  # Change Base to BaseWithId
     )
 
 
-class ScPrep(BaseWithId):  # Change Base to BaseWithId
+class ScPrep(BaseWithId):
     __tablename__ = "sc_prep"
     fio = Column(Text, nullable=False)
     chair = Column(Text)
@@ -41,12 +40,12 @@ class ScPrep(BaseWithId):  # Change Base to BaseWithId
     )
 
 
-class Students(BaseWithId):  # Change Base to BaseWithId
+class Students(BaseWithId):
     __tablename__ = "students"
     subgroup = Column(Integer)
 
 
-class ScRasp7(BaseWithId):  # Change Base to BaseWithId
+class ScRasp7(BaseWithId):
     __tablename__ = "sc_rasp7"
     semcode = Column(Integer, nullable=False, index=True)
     version = Column(Integer, nullable=False)
@@ -70,7 +69,7 @@ class ScRasp7(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp7_semcode_version", "semcode", "version"),)
 
 
-class ScRasp7Groups(BaseWithId):  # Change Base to BaseWithId
+class ScRasp7Groups(BaseWithId):
     __tablename__ = "sc_rasp7_groups"
     rasp7_id = Column(
         Integer, ForeignKey("sc_rasp7.id", ondelete="CASCADE"), nullable=False
@@ -86,7 +85,7 @@ class ScRasp7Groups(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp7_groups_group_sem", "group_id", "rasp7_id"),)
 
 
-class ScRasp7Rooms(BaseWithId):  # Change Base to BaseWithId
+class ScRasp7Rooms(BaseWithId):
     __tablename__ = "sc_rasp7_rooms"
     rasp7_id = Column(
         Integer, ForeignKey("sc_rasp7.id", ondelete="CASCADE"), nullable=False
@@ -98,7 +97,7 @@ class ScRasp7Rooms(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp7_rooms_room_rasp", "room", "rasp7_id"),)
 
 
-class ScRasp7Preps(BaseWithId):  # Change Base to BaseWithId
+class ScRasp7Preps(BaseWithId):
     __tablename__ = "sc_rasp7_preps"
     rasp7_id = Column(
         Integer, ForeignKey("sc_rasp7.id", ondelete="CASCADE"), nullable=False
@@ -113,7 +112,7 @@ class ScRasp7Preps(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp7_preps_prep_rasp", "prep_id", "rasp7_id"),)
 
 
-class ScRasp18(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18(BaseWithId):
     __tablename__ = "sc_rasp18"
     semcode = Column(Integer, nullable=False, index=True)
     day_id = Column(
@@ -143,7 +142,7 @@ class ScRasp18(BaseWithId):  # Change Base to BaseWithId
     info = relationship("ScRasp18Info", back_populates="rasp18", cascade="all, delete")
 
 
-class ScRasp18Groups(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18Groups(BaseWithId):
     __tablename__ = "sc_rasp18_groups"
     rasp18_id = Column(
         Integer, ForeignKey("sc_rasp18.id", ondelete="CASCADE"), nullable=False
@@ -159,7 +158,7 @@ class ScRasp18Groups(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp18_groups_group_rasp", "group_id", "rasp18_id"),)
 
 
-class ScRasp18Rooms(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18Rooms(BaseWithId):
     __tablename__ = "sc_rasp18_rooms"
     rasp18_id = Column(
         Integer, ForeignKey("sc_rasp18.id", ondelete="CASCADE"), nullable=False
@@ -171,7 +170,7 @@ class ScRasp18Rooms(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp18_rooms_room_rasp", "room", "rasp18_id"),)
 
 
-class ScRasp18Preps(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18Preps(BaseWithId):
     __tablename__ = "sc_rasp18_preps"
     rasp18_id = Column(
         Integer, ForeignKey("sc_rasp18.id", ondelete="CASCADE"), nullable=False
@@ -186,7 +185,7 @@ class ScRasp18Preps(BaseWithId):  # Change Base to BaseWithId
     __table_args__ = (Index("ix_sc_rasp18_preps_prep_rasp", "prep_id", "rasp18_id"),)
 
 
-class ScRasp18Move(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18Move(BaseWithId):
     __tablename__ = "sc_rasp18_move"
     rasp18_dest_id = Column(
         Integer, ForeignKey("sc_rasp18.id", ondelete="CASCADE"), nullable=False
@@ -199,7 +198,7 @@ class ScRasp18Move(BaseWithId):  # Change Base to BaseWithId
     rasp18 = relationship("ScRasp18", back_populates="moves")
 
 
-class ScRasp18Info(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18Info(BaseWithId):
     __tablename__ = "sc_rasp18_info"
     rasp18_id = Column(
         Integer, ForeignKey("sc_rasp18.id", ondelete="CASCADE"), nullable=False
@@ -210,12 +209,10 @@ class ScRasp18Info(BaseWithId):  # Change Base to BaseWithId
     rasp18 = relationship("ScRasp18", back_populates="info")
 
 
-class ScRasp18Days(BaseWithId):  # Change Base to BaseWithId
+class ScRasp18Days(BaseWithId):
     __tablename__ = "sc_rasp18_days"
     semcode = Column(Integer, nullable=False, index=True)
-    day = Column(
-        Date, nullable=False
-    )  # This is correct, schema shows 'data' which appears to be a typo
+    day = Column(Date, nullable=False)
     weekday = Column(Integer, nullable=False)
     week = Column(Integer, nullable=False)
 
