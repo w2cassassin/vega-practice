@@ -25,6 +25,22 @@ function openAddLessonModal(date, pair, entity, entityType) {
     document.getElementById("repeatForWeeks").checked = false;
     document.getElementById("weeksSelector").classList.add("is-hidden");
 
+    const repeatWeeksCheckbox = document.getElementById("repeatForWeeks");
+    const handleChange = function () {
+        const weeksSelector = document.getElementById("weeksSelector");
+        if (this.checked) {
+            weeksSelector.classList.remove("is-hidden");
+        } else {
+            weeksSelector.classList.add("is-hidden");
+        }
+    };
+
+    const oldCheckbox = repeatWeeksCheckbox;
+    const newCheckbox = oldCheckbox.cloneNode(true);
+    oldCheckbox.parentNode.replaceChild(newCheckbox, oldCheckbox);
+
+    newCheckbox.addEventListener("change", handleChange);
+
     if (semesterDates && semesterDates.weeks_count) {
         generateWeekCheckboxes(semesterDates.weeks_count);
     } else {

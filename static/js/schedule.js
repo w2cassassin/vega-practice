@@ -155,16 +155,9 @@ function initializeApp(baseUrl) {
             "#addLessonModal .delete, #addLessonModal .modal-background"
         );
         modalCloseButtons.forEach((button) => {
-            button.addEventListener("click", closeAddLessonModal);
-        });
-
-        document.getElementById("repeatForWeeks").addEventListener("change", function () {
-            const weeksSelector = document.getElementById("weeksSelector");
-            if (this.checked) {
-                weeksSelector.classList.remove("is-hidden");
-            } else {
-                weeksSelector.classList.add("is-hidden");
-            }
+            button.addEventListener("click", function () {
+                document.getElementById("addLessonModal").classList.remove("is-active");
+            });
         });
     });
 
@@ -400,9 +393,6 @@ function selectItem(filterId, item) {
     inputField.value = "";
 }
 
-// Остальной JavaScript код schedule.html
-// ...
-
 // Экспортируем функции, которые могут понадобиться в HTML
 window.toggleTheme = toggleTheme;
 window.setCurrentWeek = setCurrentWeek;
@@ -413,21 +403,6 @@ window.showSuggestions = showSuggestions;
 window.selectItem = selectItem;
 window.loadSchedules = loadSchedules;
 window.loadFreeSlots = loadFreeSlots;
-window.handleCellClick = handleCellClick;
-window.openAddLessonModal = openAddLessonModal;
-window.closeAddLessonModal = closeAddLessonModal;
-window.addManualTeacher = addManualTeacher;
-window.addManualRoom = addManualRoom;
-window.addManualGroup = addManualGroup;
-window.saveLesson = saveLesson;
-window.closeMoveLessonModal = closeMoveLessonModal;
-window.saveMove = saveMove;
-window.moveLessonModal = moveLessonModal;
-window.deleteLesson = deleteLesson;
-window.selectAllWeeks = selectAllWeeks;
-window.selectOddWeeks = selectOddWeeks;
-window.selectEvenWeeks = selectEvenWeeks;
-window.deselectAllWeeks = deselectAllWeeks;
 window.initializeApp = initializeApp;
 window.updateYearPresetsVisibility = updateYearPresetsVisibility;
 
