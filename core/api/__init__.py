@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from core.api.router.api.file_routes import router as files_router
-from core.api.router.api.schedule_routes import router as schedule_router
+from core.api.router.files.view import router as files_router
+from core.api.router.schedule.view import router as schedule_router
 from core.api.router.view import router as main_router
 
 router = APIRouter()

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
         "КР": 14,
         "КП": 15,
         "СР": 16,
+        "КОНС": 17,
     }
 
 

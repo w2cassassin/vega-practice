@@ -1,16 +1,22 @@
 from urllib.parse import quote
 from typing import List
-from pydantic import BaseModel
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
-from core.services.file_manager import FileManager
+from core.repositories.file_repository import FileRepository
 from core.services.schedule_compare import ScheduleCompareService
 from core.services.schedule_service import ScheduleService
-
-from core.api.router.api.depends import (
+from core.schemas.schedule import ScheduleComparisonResultModel
+from core.schemas.api_responses import (
+    FileResponseModel,
+    FileListResponseModel,
+    MessageResponseModel,
+    GroupListResponseModel,
+    ExternalGroupsResponseModel,
+)
+from core.api.router.files.depends import (
     get_compare_service,
     get_file_manager,
     get_schedule_service,
@@ -19,69 +25,70 @@ from core.api.router.api.depends import (
 router = APIRouter(tags=["files"])
 
 
-class GroupDownload(BaseModel):
-    groups: List[str]
-
-
-@router.post("/add_file/")
+@router.post("/add-file")
 async def add_file(
     file: UploadFile = File(...),
-    file_manager: FileManager = Depends(get_file_manager),
+    is_official: bool = False,
+    file_manager: FileRepository = Depends(get_file_manager),
     schedule_service: ScheduleService = Depends(get_schedule_service),
-):
+) -> FileResponseModel:
     try:
         if not file.filename.endswith(".xlsx") and not file.filename.endswith(".ics"):
             raise HTTPException(status_code=400, detail="Wrong format")
         saved_file = await file_manager.save_file(file)
-        await schedule_service.add_or_update_7day_schedule_from_dict(
-            1, 1, saved_file.standardized_content
+        await schedule_service.import_schedule_from_standardized_content(
+            1, 1, saved_file.standardized_content, is_official=is_official
         )
 
         file_id = saved_file.id
 
-        return {
-            "id": file_id,
-            "name": file.filename,
-            "created_at": saved_file.created_at,
-        }
+        return FileResponseModel(
+            id=file_id,
+            name=file.filename,
+            created_at=saved_file.created_at.isoformat(),
+            is_official=is_official,
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/files/")
-async def all_files(file_manager: FileManager = Depends(get_file_manager)):
+@router.get("/files")
+async def all_files(
+    file_manager: FileRepository = Depends(get_file_manager),
+) -> FileListResponseModel:
     try:
         files = await file_manager.list_files()
-        return {
-            "files": [
-                {
-                    "name": file.original_name,
-                    "id": file.id,
-                    "created_at": file.created_at,
-                    "group_count": file.group_count,
-                }
+        return FileListResponseModel(
+            files=[
+                FileResponseModel(
+                    name=file.original_name,
+                    id=file.id,
+                    created_at=file.created_at.isoformat(),
+                    group_count=file.group_count,
+                    group_names=list(file.standardized_content.keys()),
+                )
                 for file in files
             ]
-        }
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/files/{file_id}")
 async def delete_file(
-    file_id: int, file_manager: FileManager = Depends(get_file_manager)
-):
+    file_id: int, file_manager: FileRepository = Depends(get_file_manager)
+) -> MessageResponseModel:
     try:
         await file_manager.delete_file(file_id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"message": "Файл успешно удален"}
+    return MessageResponseModel(message="Файл успешно удален")
 
 
-@router.get("/download_file/{file_id}")
+@router.get("/download-file/{file_id}")
 async def download_file(
-    file_id: int, file_manager: FileManager = Depends(get_file_manager)
+    file_id: int, file_manager: FileRepository = Depends(get_file_manager)
 ):
     try:
         file_data = await file_manager.get_file(file_id)
@@ -104,13 +111,13 @@ async def download_file(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/compare_files/")
+@router.get("/compare-files")
 async def compare_files(
     file_id_1: int,
     file_id_2: int,
-    file_manager: FileManager = Depends(get_file_manager),
+    file_manager: FileRepository = Depends(get_file_manager),
     compare_service: ScheduleCompareService = Depends(get_compare_service),
-):
+) -> ScheduleComparisonResultModel:
     try:
         file_1 = await file_manager.get_file(file_id_1)
         file_2 = await file_manager.get_file(file_id_2)
@@ -133,8 +140,8 @@ async def compare_files(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/search_groups/")
-async def search_groups(match: str):
+@router.get("/search-groups")
+async def search_groups(match: str) -> ExternalGroupsResponseModel:
     external_api_url = "https://schedule-of.mirea.ru/schedule/api/search"
     params = {"limit": 15, "match": match}
 
@@ -146,71 +153,32 @@ async def search_groups(match: str):
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
-    return data
-
-
-@router.post("/download_groups/")
-async def download_groups(
-    background_tasks: BackgroundTasks,
-    request: GroupDownload,
-    file_manager: FileManager = Depends(get_file_manager),
-    schedule_service: ScheduleService = Depends(get_schedule_service),
-):
-    try:
-
-        new_file = await file_manager.download_group_schedules(request.groups)
-        semcode = await schedule_service.get_current_semcode()
-
-        async def update_database():
-            try:
-                await schedule_service.add_or_update_7day_schedule_from_dict(
-                    semcode=semcode,
-                    version=1,
-                    data=new_file.standardized_content,
-                )
-            except Exception as e:
-                print(f"Ошибка в фоновой обработке: {str(e)}")
-
-        background_tasks.add_task(update_database)
-
-        return {
-            "id": new_file.id,
-            "name": new_file.original_name,
-            "created_at": new_file.created_at,
-            "group_count": new_file.group_count,
-            "imported_to_db": True,
-            "semcode": semcode,
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to download schedules: {str(e)}"
-        )
+    return ExternalGroupsResponseModel.model_validate(data)
 
 
 @router.get("/files/{file_id}")
-async def get_file(file_id: int, file_manager: FileManager = Depends(get_file_manager)):
+async def get_file(
+    file_id: int, file_manager: FileRepository = Depends(get_file_manager)
+) -> FileResponseModel:
     try:
         file_data = await file_manager.get_file(file_id)
         if not file_data:
             raise HTTPException(status_code=404, detail="Файл не найден")
 
-        return {
-            "name": file_data.original_name,
-            "id": file_data.id,
-            "created_at": file_data.created_at,
-            "group_count": file_data.group_count,
-        }
+        return FileResponseModel(
+            name=file_data.original_name,
+            id=file_data.id,
+            created_at=file_data.created_at.isoformat(),
+            group_count=file_data.group_count,
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/files/{file_id}/groups")
 async def get_groups_from_file(
-    file_id: int, file_manager: FileManager = Depends(get_file_manager)
-):
+    file_id: int, file_manager: FileRepository = Depends(get_file_manager)
+) -> GroupListResponseModel:
     try:
         file_data = await file_manager.get_file(file_id)
         if not file_data:
@@ -223,6 +191,7 @@ async def get_groups_from_file(
 
         groups = list(file_data.standardized_content.keys())
 
-        return {"groups": groups}
+        return GroupListResponseModel(groups=groups)
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

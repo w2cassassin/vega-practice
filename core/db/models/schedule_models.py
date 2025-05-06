@@ -57,7 +57,6 @@ class ScRasp7(BaseWithId):
     weeksarray = Column(ARRAY(Integer), nullable=False)
     weekstext = Column(String, nullable=False)
     worktype = Column(Integer, nullable=False)
-    # removed lesson_type_id
 
     discipline = relationship("ScDisc", back_populates="rasp7_entries")
     groups = relationship(

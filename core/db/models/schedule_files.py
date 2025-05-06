@@ -10,4 +10,4 @@ class ScheduleFile(BaseWithTimestamp):
     file_data = Column(LargeBinary, nullable=False)
     visible = Column(Boolean, default=True)
     standardized_content = Column(JSON, nullable=True)
-    group_count = Column(Integer, default=0)  # New field
+    group_count = Column(Integer, default=0)
