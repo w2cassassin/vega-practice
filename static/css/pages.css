@@ -262,13 +262,6 @@
   border-bottom: 1px solid var(--border-color);
 }
 
-.subject-name {
-  font-weight: 500;
-  color: var(--info-text);
-  margin-left: 1rem;
-  text-align: center;
-}
-
 .lesson-info {
   display: inline-block;
   color: var(--info-text);
@@ -471,10 +464,6 @@
   color: #fff;
 }
 
-[data-theme="dark"] .subject-name {
-  color: #72c1df;
-}
-
 /* Стили для свободных слотов */
 .all-free-slot {
   background-color: var(--all-free-slot-bg);
@@ -631,6 +620,14 @@
 #minPairSlider::-moz-range-thumb {
   z-index: 3;
   border: 1px solid white;
+}
+
+#maxPairSlider {
+  position: absolute;
+  width: 100%;
+  top: auto;
+  bottom: 0;
+  z-index: 1;
 }
 
 .free-slots-table {
@@ -1212,13 +1209,8 @@
   color: var(--accent-color);
 }
 
-/* Стили для всплывающей подсказки */
-.version-groups-icon::after {
-  content: attr(data-groups);
-  position: absolute;
-  bottom: 150%;
-  left: 50%;
-  transform: translateX(-50%);
+.groups-tooltip {
+  position: fixed;
   background-color: var(--bg-color);
   color: var(--text-color);
   padding: 0.5rem;
@@ -1226,35 +1218,14 @@
   border: 1px solid var(--border-color);
   box-shadow: 0 2px 4px var(--box-shadow);
   white-space: pre;
-  display: none;
-  z-index: 1000;
+  z-index: 10000;
   max-width: 300px;
   font-size: 0.9rem;
   line-height: 1.4;
 }
 
-/* Показываем подсказку при наведении */
-.version-groups-icon:hover::after {
-  display: block;
-}
-
-/* Для первых двух элементов показываем подсказку снизу */
-#versionsList .version-box:first-child .version-groups-icon::after,
-#versionsList .version-box:nth-child(2) .version-groups-icon::after {
-  bottom: auto;
-  top: 150%;
-}
-
 /* Темная тема */
-[data-theme="dark"] .version-groups-icon {
-  color: var(--info-text);
-}
-
-[data-theme="dark"] .version-groups-icon:hover {
-  color: var(--accent-color);
-}
-
-[data-theme="dark"] .version-groups-icon::after {
+[data-theme="dark"] .groups-tooltip {
   background-color: var(--nav-bg);
   color: var(--text-color);
   border-color: var(--border-color);
@@ -1263,12 +1234,6 @@
 .weeks-comparison {
   margin-top: 1rem;
   margin-bottom: 1rem;
-}
-
-.weeks-comparison-title {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
 }
 
 .weeks-table {
@@ -1424,6 +1389,8 @@
 #maxPairSlider {
   position: absolute;
   width: 100%;
+  top: auto;
+  bottom: 0;
   z-index: 1;
 }
 
@@ -1534,4 +1501,10 @@
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 1rem;
+}
+
+.change-details .lesson-type,
+.schedule-item .lesson-type {
+  margin-right: 6px;
+  white-space: nowrap;
 }

@@ -14,7 +14,6 @@ class LessonData(BaseModel):
     campus: str = ""
     lesson_type: str = ""
     lesson_type_id: Optional[Union[str, int]] = None
-    date: Optional[str] = None
 
 
 class WeekSchedule(BaseModel):
@@ -155,6 +154,7 @@ class LessonDetailsCompareModel(BaseModel):
     teacher: str = "—"
     room: str = "—"
     campus: str = "—"
+    lesson_type: str = "—"
 
 
 class LessonChangeModel(BaseModel):

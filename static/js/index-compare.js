@@ -37,10 +37,7 @@ function renderVersions() {
         <div class="version-info">
           <span class="version-date">${date}</span>
           <span class="version-count">${version.group_count} групп</span>
-          <span class="version-groups-icon" data-groups="${version.group_names && version.group_names.length
-                    ? version.group_names.join("\n")
-                    : ""
-                }">
+          <span class="version-groups-icon" data-version-id="${version.id}">
             <i class="fas fa-info-circle"></i>
           </span>
         </div>
@@ -52,12 +49,56 @@ function renderVersions() {
       `;
             versionsList.appendChild(box);
 
+            const groupsIcon = box.querySelector('.version-groups-icon');
+            if (version.group_names && version.group_names.length) {
+                groupsIcon.addEventListener('mouseenter', function (e) {
+                    showGroupsTooltip(e.target, version.group_names.join("\n"));
+                });
+                groupsIcon.addEventListener('mouseleave', function () {
+                    hideGroupsTooltip();
+                });
+            }
+
             const deleteButton = box.querySelector('.version-delete');
             deleteButton.addEventListener('click', function () {
                 deleteVersion(version.id);
             });
         });
 }
+
+let activeTooltip = null;
+
+function showGroupsTooltip(element, groupsText) {
+    hideGroupsTooltip();
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'groups-tooltip';
+    tooltip.textContent = groupsText;
+    document.body.appendChild(tooltip);
+
+    const rect = element.getBoundingClientRect();
+    const isNearTop = rect.top < 150;
+
+    if (isNearTop) {
+        tooltip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+    } else {
+        tooltip.style.top = (rect.top + window.scrollY - tooltip.offsetHeight - 5) + 'px';
+    }
+
+    tooltip.style.left = (rect.left + window.scrollX + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+    activeTooltip = tooltip;
+}
+
+function hideGroupsTooltip() {
+    if (activeTooltip) {
+        document.body.removeChild(activeTooltip);
+        activeTooltip = null;
+    }
+}
+
+window.addEventListener('scroll', function () {
+    hideGroupsTooltip();
+});
 
 function renderVersionOptions() {
     const leftVersionSelect = document.getElementById("leftVersionSelect");
@@ -198,7 +239,6 @@ function renderComparisonResults(result) {
 }
 
 function renderSummaryBadges(summary, groupData) {
-    // Проверка наличия и корректности объекта summary
     if (!summary || typeof summary !== 'object') {
         return '<span class="has-text-grey">Нет подробностей</span>';
     }
@@ -211,7 +251,6 @@ function renderSummaryBadges(summary, groupData) {
         campus: "кампусы",
     };
 
-    // Проверяем, есть ли ненулевые значения в summary
     let hasNonZeroValues = false;
     for (const [key, count] of Object.entries(summary)) {
         if (count > 0) {
@@ -224,25 +263,21 @@ function renderSummaryBadges(summary, groupData) {
         }
     }
 
-    // Если в summary все нули, но есть изменения, генерируем бейджи на основе details
     if (!hasNonZeroValues && groupData && groupData.total > 0 && groupData.details) {
         const details = groupData.details;
 
-        // Считаем количество изменений по типам
         const counts = {
             added: details.added.length,
             removed: details.removed.length,
             modified: details.modified.length
         };
 
-        // Типы бейджей для разных изменений
         const typeLabels = {
             added: "добавлено",
             removed: "удалено",
             modified: "изменено"
         };
 
-        // Добавляем бейджи для каждого типа изменений
         for (const [type, count] of Object.entries(counts)) {
             if (count > 0) {
                 badges.push(`
@@ -297,9 +332,6 @@ function renderChangeSection(title, items, type) {
     `;
 
         if (type === "modified") {
-            const subject = item.before.subject || "—";
-            header.innerHTML += `<div class="subject-name">${subject}</div>`;
-
             card.appendChild(header);
 
             const datesInfo =
@@ -317,9 +349,7 @@ function renderChangeSection(title, items, type) {
             if (item.weeks_comparison && item.weeks_comparison.length > 0) {
                 const weeksTable = document.createElement("div");
                 weeksTable.className = "weeks-comparison";
-                const weekType = item.week % 2 === 1 ? "нечётные" : "чётные";
                 weeksTable.innerHTML = `
-          <h4 class="weeks-comparison-title">Изменения по ${weekType} неделям:</h4>
           <table class="table is-fullwidth weeks-table">
             <thead>
               <tr>
@@ -333,7 +363,7 @@ function renderChangeSection(title, items, type) {
               ${item.weeks_comparison
                         .map((week) => {
                             const beforeInfo = week.before
-                                ? `<div><strong>Предмет:</strong> ${week.before.subject
+                                ? `<div><strong>Предмет:</strong> ${week.before.lesson_type ? `<span class="lesson-type ${getLessonTypeClass(week.before.lesson_type)}">${week.before.lesson_type}</span> ` : ''}${week.before.subject
                                 }</div>
                    <div><strong>Преподаватель:</strong> ${week.before.teacher
                                 }</div>
@@ -344,7 +374,7 @@ function renderChangeSection(title, items, type) {
                                 : "<div>—</div>";
 
                             const afterInfo = week.after
-                                ? `<div><strong>Предмет:</strong> ${week.after.subject
+                                ? `<div><strong>Предмет:</strong> ${week.after.lesson_type ? `<span class="lesson-type ${getLessonTypeClass(week.after.lesson_type)}">${week.after.lesson_type}</span> ` : ''}${week.after.subject
                                 }</div>
                    <div><strong>Преподаватель:</strong> ${week.after.teacher
                                 }</div>
@@ -435,25 +465,18 @@ function renderChangeSection(title, items, type) {
         `;
             }
         } else {
-            const subject = item.details.subject || "—";
-            header.innerHTML += `<div class="subject-name">${subject}</div>`;
-
             card.appendChild(header);
 
             if (item.weeks_comparison && item.weeks_comparison.length > 0) {
                 const weeksTable = document.createElement("div");
                 weeksTable.className = "weeks-comparison";
-                const weekType = item.week % 2 === 1 ? "нечётные" : "чётные";
                 weeksTable.innerHTML = `
-          <h4 class="weeks-comparison-title">Информация по ${weekType} неделям:</h4>
           <table class="table is-fullwidth weeks-table">
             <thead>
               <tr>
                 <th>Неделя</th>
-                ${type === "removed"
-                        ? "<th>Было</th><th></th>"
-                        : "<th></th><th>Стало</th>"
-                    }
+                <th>Было</th>
+                <th>Стало</th>
                 <th>Статус</th>
               </tr>
             </thead>
@@ -462,7 +485,7 @@ function renderChangeSection(title, items, type) {
                         .map((week) => {
                             const detailsInfo = (details) => {
                                 if (!details) return "<div>—</div>";
-                                return `<div><strong>Предмет:</strong> ${details.subject
+                                return `<div><strong>Предмет:</strong> ${details.lesson_type ? `<span class="lesson-type ${getLessonTypeClass(details.lesson_type)}">${details.lesson_type}</span> ` : ''}${details.subject
                                     }</div>
                       <div><strong>Преподаватель:</strong> ${details.teacher
                                     }</div>
@@ -488,37 +511,30 @@ function renderChangeSection(title, items, type) {
                             const weekTypeLabel =
                                 week.week % 2 !== 0 ? "нечётная" : "чётная";
 
-                            if (type === "added") {
-                                return `
-                      <tr class="${week.change_type === type ? "week-changed" : ""
-                                    }">
-                        <td>
-                          <strong>Неделя ${week.week}</strong>
-                          <div class="week-date">${weekTypeLabel}</div>
-                        </td>
-                        <td></td>
-                        <td class="after-cell">${detailsInfo(
-                                        week.after
-                                    )}</td>
-                        <td class="${changeTypeClass} change-type-cell">${changeTypeText}</td>
-                      </tr>
-                    `;
-                            } else {
-                                return `
-                      <tr class="${week.change_type === type ? "week-changed" : ""
-                                    }">
-                        <td>
-                          <strong>Неделя ${week.week}</strong>
-                          <div class="week-date">${weekTypeLabel}</div>
-                        </td>
-                        <td class="before-cell">${detailsInfo(
-                                        week.before
-                                    )}</td>
-                        <td></td>
-                        <td class="${changeTypeClass} change-type-cell">${changeTypeText}</td>
-                      </tr>
-                    `;
+                            let beforeCell = "<div>—</div>";
+                            let afterCell = "<div>—</div>";
+
+                            if (week.change_type === "unchanged") {
+                                beforeCell = detailsInfo(week.before);
+                                afterCell = detailsInfo(week.after);
+                            } else if (week.change_type === "added") {
+                                afterCell = detailsInfo(week.after);
+                            } else if (week.change_type === "removed") {
+                                beforeCell = detailsInfo(week.before);
                             }
+
+                            return `
+                      <tr class="${week.change_type === type ? "week-changed" : ""
+                                }">
+                        <td>
+                          <strong>Неделя ${week.week}</strong>
+                          <div class="week-date">${weekTypeLabel}</div>
+                        </td>
+                        <td class="before-cell">${beforeCell}</td>
+                        <td class="after-cell">${afterCell}</td>
+                        <td class="${changeTypeClass} change-type-cell">${changeTypeText}</td>
+                      </tr>
+                    `;
                         })
                         .join("")}
             </tbody>
@@ -533,7 +549,7 @@ function renderChangeSection(title, items, type) {
 
                 card.innerHTML += `
           <div class="schedule-item">
-            <div><strong>Предмет:</strong> ${item.details.subject}</div>
+            <div><strong>Предмет:</strong> ${item.details.lesson_type ? `<span class="lesson-type ${getLessonTypeClass(item.details.lesson_type)}">${item.details.lesson_type}</span> ` : ''}${item.details.subject}</div>
             <div><strong>Преподаватель:</strong> ${item.details.teacher}</div>
             <div><strong>Аудитория:</strong> ${item.details.room}</div>
             <div><strong>Кампус:</strong> ${item.details.campus}</div>
@@ -556,12 +572,43 @@ function translateField(field) {
         room: "Аудитория",
         campus: "Кампус",
         dates: "Даты проведения",
+        lesson_type: "Тип занятия",
     };
     return translations[field] || field;
+}
+
+function getLessonTypeClass(lessonType) {
+    if (!lessonType || lessonType === "—") return "";
+
+    const typeClasses = {
+        "ПР": "lesson-type-pr",
+        "ЛК": "lesson-type-lk",
+        "ЛАБ": "lesson-type-lab",
+        "ЭКЗ": "lesson-type-exam",
+        "ЗАЧ": "lesson-type-exam",
+        "ЗАЧ-Д": "lesson-type-exam",
+        "КР": "lesson-type-exam",
+        "КП": "lesson-type-pr",
+        "СР": "lesson-type-pr",
+        "КОНС": "lesson-type-lk"
+    };
+
+    if (typeClasses[lessonType.trim()]) {
+        return typeClasses[lessonType.trim()];
+    }
+
+    const type = lessonType.toLowerCase();
+    if (type.includes("лк") || type.includes("лекц") || type.includes("конс")) return "lesson-type-lk";
+    if (type.includes("пр") || type.includes("практич") || type.includes("ср")) return "lesson-type-pr";
+    if (type.includes("лаб") || type.includes("лабор")) return "lesson-type-lab";
+    if (type.includes("экз") || type.includes("зач") || type.includes("контр") || type.includes("курс")) return "lesson-type-exam";
+
+    return "";
 }
 
 window.renderVersions = renderVersions;
 window.renderVersionOptions = renderVersionOptions;
 window.renderComparisonResults = renderComparisonResults;
 window.translateField = translateField;
-window.deleteVersion = deleteVersion; 
+window.deleteVersion = deleteVersion;
+window.getLessonTypeClass = getLessonTypeClass; 

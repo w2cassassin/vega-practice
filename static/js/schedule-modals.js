@@ -678,11 +678,9 @@ function generateYearPresets() {
         presetsAsteriskContainer.appendChild(buttonAsterisk);
     }
 
-    // Используем setTimeout для гарантированного обновления видимости после создания пресетов
     setTimeout(updateYearPresetsVisibility, 20);
 }
 
-// Экспортируем функции в глобальный объект
 window.openAddLessonModal = openAddLessonModal;
 window.closeAddLessonModal = closeAddLessonModal;
 window.addTagItem = addTagItem;

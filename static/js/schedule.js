@@ -393,7 +393,6 @@ function selectItem(filterId, item) {
     inputField.value = "";
 }
 
-// Экспортируем функции, которые могут понадобиться в HTML
 window.toggleTheme = toggleTheme;
 window.setCurrentWeek = setCurrentWeek;
 window.setNextWeek = setNextWeek;

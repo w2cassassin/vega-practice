@@ -190,18 +190,28 @@ class ScheduleRepository(BaseRepository):
                 select(ScGroup.title)
                 .where(ScGroup.title.ilike(f"%{query}%"))
                 .distinct()
+                .order_by(ScGroup.title.asc())
             )
         elif search_type == "prep":
-            stmt = select(ScPrep.fio).where(ScPrep.fio.ilike(f"%{query}%")).distinct()
+            stmt = (
+                select(ScPrep.fio)
+                .where(ScPrep.fio.ilike(f"%{query}%"))
+                .distinct()
+                .order_by(ScPrep.fio.asc())
+            )
         elif search_type == "subject":
             stmt = (
-                select(ScDisc.title).where(ScDisc.title.ilike(f"%{query}%")).distinct()
+                select(ScDisc.title)
+                .where(ScDisc.title.ilike(f"%{query}%"))
+                .distinct()
+                .order_by(ScDisc.title.asc())
             )
         elif search_type == "room":
             stmt = (
                 select(ScRasp18Rooms.room)
                 .where(ScRasp18Rooms.room.ilike(f"%{query}%"))
                 .distinct()
+                .order_by(ScRasp18Rooms.room.asc())
             )
         else:
             return []

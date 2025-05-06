@@ -179,11 +179,18 @@ class ScheduleCompareService:
                 for week in filtered_weeks:
                     week_info = WeekComparisonItemModel(week=week)
 
-                    if week in lesson_tracking["weeks"] and lesson_tracking["weeks"][
-                        week
-                    ].get("after"):
-                        week_info.after = lesson_tracking["weeks"][week]["after"]
-                        week_info.change_type = "added"
+                    if week in lesson_tracking["weeks"]:
+                        if lesson_tracking["weeks"][week].get(
+                            "after"
+                        ) and not lesson_tracking["weeks"][week].get("before"):
+                            week_info.after = lesson_tracking["weeks"][week]["after"]
+                            week_info.change_type = "added"
+                        elif lesson_tracking["weeks"][week].get(
+                            "after"
+                        ) and lesson_tracking["weeks"][week].get("before"):
+                            week_info.before = lesson_tracking["weeks"][week]["before"]
+                            week_info.after = lesson_tracking["weeks"][week]["after"]
+                            week_info.change_type = "unchanged"
 
                     weeks_comparison.append(week_info)
 
@@ -205,11 +212,18 @@ class ScheduleCompareService:
                 for week in filtered_weeks:
                     week_info = WeekComparisonItemModel(week=week)
 
-                    if week in lesson_tracking["weeks"] and lesson_tracking["weeks"][
-                        week
-                    ].get("before"):
-                        week_info.before = lesson_tracking["weeks"][week]["before"]
-                        week_info.change_type = "removed"
+                    if week in lesson_tracking["weeks"]:
+                        if lesson_tracking["weeks"][week].get(
+                            "before"
+                        ) and not lesson_tracking["weeks"][week].get("after"):
+                            week_info.before = lesson_tracking["weeks"][week]["before"]
+                            week_info.change_type = "removed"
+                        elif lesson_tracking["weeks"][week].get(
+                            "before"
+                        ) and lesson_tracking["weeks"][week].get("after"):
+                            week_info.before = lesson_tracking["weeks"][week]["before"]
+                            week_info.after = lesson_tracking["weeks"][week]["after"]
+                            week_info.change_type = "unchanged"
 
                     weeks_comparison.append(week_info)
 
@@ -252,6 +266,7 @@ class ScheduleCompareService:
                         teacher=lesson_data.teacher,
                         room=lesson_data.room,
                         campus=lesson_data.campus,
+                        lesson_type=lesson_data.lesson_type,
                     )
 
                     existing_added = next(
@@ -308,6 +323,7 @@ class ScheduleCompareService:
                         teacher=lesson_data.teacher,
                         room=lesson_data.room,
                         campus=lesson_data.campus,
+                        lesson_type=lesson_data.lesson_type,
                     )
 
                     existing_removed = next(
@@ -362,7 +378,13 @@ class ScheduleCompareService:
                     lesson2 = day_schedule2[pair_number]
                     changes = []
 
-                    for field in ["subject", "teacher", "room", "campus"]:
+                    for field in [
+                        "subject",
+                        "teacher",
+                        "room",
+                        "campus",
+                        "lesson_type",
+                    ]:
                         value1 = getattr(lesson1, field, "—")
                         value2 = getattr(lesson2, field, "—")
 
@@ -374,19 +396,23 @@ class ScheduleCompareService:
                                     to_value=value2,
                                 )
                             )
-                            group_result.summary.dict()[field] += 1
+                            if field != "lesson_type":
+                                current_value = getattr(group_result.summary, field)
+                                setattr(group_result.summary, field, current_value + 1)
 
                     before_details = LessonDetailsCompareModel(
                         subject=lesson1.subject,
                         teacher=lesson1.teacher,
                         room=lesson1.room,
                         campus=lesson1.campus,
+                        lesson_type=lesson1.lesson_type,
                     )
                     after_details = LessonDetailsCompareModel(
                         subject=lesson2.subject,
                         teacher=lesson2.teacher,
                         room=lesson2.room,
                         campus=lesson2.campus,
+                        lesson_type=lesson2.lesson_type,
                     )
 
                     if changes:

@@ -110,7 +110,6 @@ class ICSConverter(BaseConverter):
                 campus=campus,
                 lesson_type=lesson_type,
                 lesson_type_id=lesson_type_id,
-                date=occurrence.strftime("%Y-%m-%d"),
             )
 
             self._add_lesson_to_schedule(
@@ -122,10 +121,11 @@ class ICSConverter(BaseConverter):
         subject = summary
         lesson_type = "ПР"
         lesson_type_id = 0
-
+        summary_lower = summary.lower()
         for type_prefix, type_id in settings.LESSON_TYPES.items():
-            if summary.startswith(type_prefix):
-                subject = summary[len(type_prefix) :].strip()
+            if summary_lower.startswith(type_prefix.lower()):
+                parts = summary.split(" ", 1)
+                subject = parts[1] if len(parts) > 1 else ""
                 lesson_type = type_prefix
                 lesson_type_id = type_id
                 break
